@@ -370,7 +370,7 @@ fn print_help() {
     println!();
     println!("EXAMPLES:");
     println!("    # Initialize new medical device project");
-    println!("    qms init \"Cardiac Monitor v2.0\" \"2.0\"");
+    println!("    qms init \"Medical Device Project\" \"1.0\"");
     println!();
     println!("    # Create and manage documents");
     println!("    qms doc create \"Risk Management Plan\" \"RMP-001\" \"Risk Management\" Planning");

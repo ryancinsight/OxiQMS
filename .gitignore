@@ -27,6 +27,21 @@ Thumbs.db
 # Project directories with UUID names (runtime-generated projects)
 [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/
 
+# Project-specific filled templates (DO NOT COMMIT)
+# Keep templates in templates/ directory, but exclude filled instances
+*_plan.md
+*_content.md
+*_specification.md
+*_requirements.md
+*_protocol.md
+# Exclude specific medical device project files
+*cardiac*.md
+*monitor*.md
+*device*.md
+# But keep template files
+!templates/*_template.md
+!templates/*.md
+
 # User-generated document storage
 /documents/
 !/documents/.gitkeep
@@ -76,6 +91,9 @@ Thumbs.db
 *.tmp
 /temp/
 /tmp/
+
+# Test-generated audit logs (exclude from version control)
+test_audit_*.log
 
 # Configuration files with sensitive data
 /config/
