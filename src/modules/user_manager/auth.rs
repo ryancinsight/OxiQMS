@@ -97,7 +97,13 @@ impl<S: UserStorage> AuthManager<S> {
         };
         
         self.save_user(&user)?;
-        audit_log_action("USER_CREATED", "User", username)?;
+
+        // Attempt audit logging, but don't fail user creation if audit logging fails
+        // This is especially important during setup when the audit system may not be fully initialized
+        if let Err(e) = audit_log_action("USER_CREATED", "User", username) {
+            eprintln!("Warning: Failed to log user creation audit entry: {}", e);
+            // Continue with user creation - audit logging failure should not prevent user creation
+        }
         
         Ok(user)
     }
@@ -107,7 +113,10 @@ impl<S: UserStorage> AuthManager<S> {
         let user = self.load_user(username)?;
         
         if user.password_hash != Self::hash_password(password) {
-            audit_log_action("LOGIN_FAILED", "User", username)?;
+            // Attempt audit logging, but don't fail login if audit logging fails
+            if let Err(e) = audit_log_action("LOGIN_FAILED", "User", username) {
+                eprintln!("Warning: Failed to log login failure audit entry: {}", e);
+            }
             return Err(QmsError::Authentication("Invalid credentials".to_string()));
         }
         
@@ -133,7 +142,11 @@ impl<S: UserStorage> AuthManager<S> {
         }
         
         self.current_user = Some(username.to_string());
-        audit_log_action("LOGIN_SUCCESS", "User", username)?;
+
+        // Attempt audit logging, but don't fail login if audit logging fails
+        if let Err(e) = audit_log_action("LOGIN_SUCCESS", "User", username) {
+            eprintln!("Warning: Failed to log login success audit entry: {}", e);
+        }
         
         Ok(session)
     }

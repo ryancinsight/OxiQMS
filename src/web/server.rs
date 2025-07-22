@@ -368,13 +368,15 @@ impl QMSWebServer {
             }
         }
 
-        // Log request for audit trail
-        if let Err(e) = crate::modules::audit_logger::audit_log_action(
-            "HTTP_REQUEST",
-            "WebServer",
-            &format!("{} {}", request.method, request.path())
-        ) {
-            eprintln!("⚠️  Warning: Failed to log HTTP request: {e}");
+        // Log request for audit trail (only if project exists)
+        if crate::utils::qms_project_exists() {
+            if let Err(e) = crate::modules::audit_logger::audit_log_action(
+                "HTTP_REQUEST",
+                "WebServer",
+                &format!("{} {}", request.method, request.path())
+            ) {
+                eprintln!("⚠️  Warning: Failed to log HTTP request: {e}");
+            }
         }
 
         let response = Self::route_request(&request, &session_manager, &asset_manager)?;
@@ -410,7 +412,49 @@ impl QMSWebServer {
     ) -> QmsResult<HttpResponse> {
         let path = request.path();
 
-        // API routes
+        // Check if QMS project exists - if not, serve setup workflow
+        let project_exists = crate::utils::qms_project_exists();
+
+        // Setup-specific routes (always available)
+        if path.starts_with("/api/setup") {
+            return Self::handle_setup_api_request(request);
+        }
+
+        // If no project exists, handle setup-specific routes and static assets
+        if !project_exists {
+            match path {
+                "/setup" | "/setup.html" => {
+                    // Serve setup page
+                    if let Some(asset) = asset_manager.get_asset("/setup.html") {
+                        let mut response = HttpResponse::ok()
+                            .with_header("Content-Type", &asset.content_type)
+                            .with_header("Cache-Control", "no-cache, must-revalidate");
+                        response.set_body(asset.content.clone());
+                        return Ok(response);
+                    }
+                }
+                // Allow static assets to be served even when no project exists
+                path if path.starts_with("/") && (
+                    path.ends_with(".js") ||
+                    path.ends_with(".css") ||
+                    path.ends_with(".ico") ||
+                    path.ends_with(".png") ||
+                    path.ends_with(".jpg") ||
+                    path.ends_with(".svg") ||
+                    path.ends_with(".woff") ||
+                    path.ends_with(".woff2")
+                ) => {
+                    // Let static assets be handled by the asset serving logic below
+                    // Don't redirect these to setup page
+                }
+                _ => {
+                    // Redirect all other requests to setup page
+                    return Ok(HttpResponse::redirect("/setup"));
+                }
+            }
+        }
+
+        // API routes (only available when project exists)
         if path.starts_with("/api/") {
             return Self::handle_api_request(request, session_manager);
         }
@@ -477,6 +521,230 @@ impl QMSWebServer {
 
         // Default to 404
         Ok(HttpResponse::not_found("File not found"))
+    }
+
+    /// Handle setup API requests (available even when no project exists)
+    fn handle_setup_api_request(request: &HttpRequest) -> QmsResult<HttpResponse> {
+        let path = request.path();
+        let method = crate::web::request::HttpMethod::from_str(&request.method);
+
+        match (method, path) {
+            (Some(crate::web::request::HttpMethod::POST), "/api/setup/validate-directory") => {
+                Self::handle_setup_validate_directory(request)
+            }
+            (Some(crate::web::request::HttpMethod::POST), "/api/setup/initialize") => {
+                Self::handle_setup_initialize(request)
+            }
+            (Some(crate::web::request::HttpMethod::GET), "/api/setup/status") => {
+                Self::handle_setup_status()
+            }
+            _ => {
+                Ok(HttpResponse::not_found_with_message(&format!("Setup API endpoint not found: {}", path)))
+            }
+        }
+    }
+
+    /// Handle setup status check
+    fn handle_setup_status() -> QmsResult<HttpResponse> {
+        let project_exists = crate::utils::qms_project_exists();
+        let response_json = format!(
+            r#"{{"project_exists": {}, "setup_required": {}}}"#,
+            project_exists,
+            !project_exists
+        );
+        Ok(HttpResponse::ok_json(&response_json))
+    }
+
+    /// Handle directory validation for setup
+    fn handle_setup_validate_directory(request: &HttpRequest) -> QmsResult<HttpResponse> {
+        if request.method != "POST" {
+            return Ok(HttpResponse::method_not_allowed(&["POST"]));
+        }
+
+        // Parse request body
+        let body_str = String::from_utf8_lossy(&request.body);
+        let directory_path = Self::extract_json_field(&body_str, "directory")
+            .ok_or_else(|| crate::error::QmsError::validation_error("Directory path required"))?;
+
+        // Validate directory
+        let path = std::path::Path::new(&directory_path);
+
+        let mut validation_result = std::collections::HashMap::new();
+        validation_result.insert("valid".to_string(), crate::json_utils::JsonValue::Bool(false));
+        validation_result.insert("writable".to_string(), crate::json_utils::JsonValue::Bool(false));
+        validation_result.insert("exists".to_string(), crate::json_utils::JsonValue::Bool(path.exists()));
+        validation_result.insert("empty".to_string(), crate::json_utils::JsonValue::Bool(false));
+
+        if path.exists() {
+            // Check if directory is writable
+            let test_file = path.join(".qms_write_test");
+            let writable = std::fs::write(&test_file, "test").is_ok();
+            if writable {
+                let _ = std::fs::remove_file(&test_file);
+            }
+            validation_result.insert("writable".to_string(), crate::json_utils::JsonValue::Bool(writable));
+
+            // Check if directory is empty or only contains hidden files
+            if let Ok(entries) = std::fs::read_dir(path) {
+                let visible_entries: Vec<_> = entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
+                    .collect();
+                validation_result.insert("empty".to_string(), crate::json_utils::JsonValue::Bool(visible_entries.is_empty()));
+            }
+
+            validation_result.insert("valid".to_string(), crate::json_utils::JsonValue::Bool(writable));
+        } else {
+            // Try to create the directory
+            if let Ok(()) = std::fs::create_dir_all(path) {
+                validation_result.insert("writable".to_string(), crate::json_utils::JsonValue::Bool(true));
+                validation_result.insert("empty".to_string(), crate::json_utils::JsonValue::Bool(true));
+                validation_result.insert("valid".to_string(), crate::json_utils::JsonValue::Bool(true));
+                validation_result.insert("exists".to_string(), crate::json_utils::JsonValue::Bool(true));
+            }
+        }
+
+        let json_value = crate::json_utils::JsonValue::Object(validation_result);
+        let response_json = json_value.json_to_string();
+
+        Ok(HttpResponse::ok_json(&response_json))
+    }
+
+    /// Handle QMS system initialization
+    fn handle_setup_initialize(request: &HttpRequest) -> QmsResult<HttpResponse> {
+        if request.method != "POST" {
+            return Ok(HttpResponse::method_not_allowed(&["POST"]));
+        }
+
+        // Parse request body
+        let body_str = String::from_utf8_lossy(&request.body);
+
+        let directory_path = Self::extract_json_field(&body_str, "directory")
+            .ok_or_else(|| crate::error::QmsError::validation_error("Directory path required"))?;
+        let project_name = Self::extract_json_field(&body_str, "project_name")
+            .ok_or_else(|| crate::error::QmsError::validation_error("Project name required"))?;
+        let admin_username = Self::extract_json_field(&body_str, "admin_username")
+            .ok_or_else(|| crate::error::QmsError::validation_error("Admin username required"))?;
+        let admin_email = Self::extract_json_field(&body_str, "admin_email")
+            .ok_or_else(|| crate::error::QmsError::validation_error("Admin email required"))?;
+        let admin_password = Self::extract_json_field(&body_str, "admin_password")
+            .ok_or_else(|| crate::error::QmsError::validation_error("Admin password required"))?;
+
+        // Validate inputs
+        if project_name.trim().is_empty() {
+            return Ok(HttpResponse::bad_request("Project name cannot be empty"));
+        }
+        if admin_username.trim().is_empty() {
+            return Ok(HttpResponse::bad_request("Admin username cannot be empty"));
+        }
+        if admin_password.len() < 8 {
+            return Ok(HttpResponse::bad_request("Admin password must be at least 8 characters"));
+        }
+
+        // Initialize project using Repository
+        match crate::modules::repository::project::Repository::init_project(&project_name, Some(&directory_path)) {
+            Ok(project) => {
+                // Create initial administrator user using the actual project path (not the parent directory)
+                let project_path = &project.path;
+                match Self::create_initial_admin_user(project_path, &admin_username, &admin_email, &admin_password) {
+                    Ok(_) => {
+                        let mut response_data = std::collections::HashMap::new();
+                        response_data.insert("success".to_string(), crate::json_utils::JsonValue::Bool(true));
+                        response_data.insert("message".to_string(), crate::json_utils::JsonValue::String("QMS system initialized successfully".to_string()));
+                        response_data.insert("project_id".to_string(), crate::json_utils::JsonValue::String(project.id));
+                        response_data.insert("project_path".to_string(), crate::json_utils::JsonValue::String(project.path.to_string_lossy().to_string()));
+
+                        let json_value = crate::json_utils::JsonValue::Object(response_data);
+                        let response_json = json_value.json_to_string();
+
+                        Ok(HttpResponse::ok_json(&response_json))
+                    }
+                    Err(e) => {
+                        // Return JSON error response instead of plain text
+                        let error_json = format!(
+                            r#"{{"success": false, "error": "Failed to create admin user: {}", "code": "USER_CREATION_FAILED"}}"#,
+                            e.to_string().replace('"', "\\\"")
+                        );
+                        Ok(HttpResponse::ok_json(&error_json))
+                    }
+                }
+            }
+            Err(e) => {
+                // Return JSON error response instead of plain text
+                let error_json = format!(
+                    r#"{{"success": false, "error": "Failed to initialize project: {}", "code": "PROJECT_INIT_FAILED"}}"#,
+                    e.to_string().replace('"', "\\\"")
+                );
+                Ok(HttpResponse::ok_json(&error_json))
+            }
+        }
+    }
+
+    /// Create initial administrator user for new QMS project
+    fn create_initial_admin_user(
+        project_path: &std::path::Path,
+        username: &str,
+        email: &str,
+        password: &str,
+    ) -> QmsResult<()> {
+        use crate::modules::user_manager::FileAuthManager;
+        use crate::models::Role;
+
+        // Create admin role with all permissions
+        let admin_role = Role {
+            name: "Administrator".to_string(),
+            permissions: vec![
+                crate::models::Permission::ReadDocuments,
+                crate::models::Permission::WriteDocuments,
+                crate::models::Permission::DeleteDocuments,
+                crate::models::Permission::ReadRisks,
+                crate::models::Permission::WriteRisks,
+                crate::models::Permission::DeleteRisks,
+                crate::models::Permission::ReadTrace,
+                crate::models::Permission::WriteTrace,
+                crate::models::Permission::DeleteTrace,
+                crate::models::Permission::ReadAudit,
+                crate::models::Permission::ExportAudit,
+                crate::models::Permission::ManageUsers,
+                crate::models::Permission::GenerateReports,
+            ],
+        };
+
+        // Initialize user manager for the project
+        let auth_manager = FileAuthManager::from_project_path(project_path)?;
+
+        // Create the admin user
+        auth_manager.add_user(username, password, Some(vec![admin_role]))?;
+
+        // Log the creation (audit logging should now work since project exists)
+        if let Err(e) = crate::modules::audit_logger::audit_log_action(
+            "ADMIN_USER_CREATED",
+            "Setup",
+            &format!("Initial administrator '{}' created during setup", username)
+        ) {
+            eprintln!("Warning: Failed to log admin user creation: {}", e);
+        }
+
+        Ok(())
+    }
+
+    /// Extract JSON field from request body (simple implementation)
+    fn extract_json_field(body: &str, field_name: &str) -> Option<String> {
+        // Simple JSON field extraction - in production would use proper JSON parser
+        let pattern = format!("\"{}\":", field_name);
+        if let Some(start) = body.find(&pattern) {
+            let after_colon = &body[start + pattern.len()..];
+            let trimmed = after_colon.trim_start();
+
+            if trimmed.starts_with('"') {
+                // String value
+                let content_start = 1;
+                if let Some(end) = trimmed[content_start..].find('"') {
+                    return Some(trimmed[content_start..content_start + end].to_string());
+                }
+            }
+        }
+        None
     }
 
     /// Handle API requests
@@ -763,26 +1031,7 @@ impl QMSWebServer {
         Ok(document.id)
     }
 
-    fn extract_json_field(json_str: &str, field_name: &str) -> Option<String> {
-        // Simple JSON field extraction (not a full parser)
-        let pattern = format!("\"{field_name}\":");
-        if let Some(start_pos) = json_str.find(&pattern) {
-            let value_start = start_pos + pattern.len();
-            let remaining = &json_str[value_start..].trim_start();
-            
-            if remaining.starts_with('"') {
-                // String value
-                let end_quote = remaining[1..].find('"')?;
-                Some(remaining[1..1 + end_quote].to_string())
-            } else {
-                // Non-string value (take until comma or closing brace)
-                let end_pos = remaining.find(',').or_else(|| remaining.find('}'))?;
-                Some(remaining[..end_pos].trim().to_string())
-            }
-        } else {
-            None
-        }
-    }
+
 
     fn handle_documents_get_api(doc_id: &str) -> QmsResult<HttpResponse> {
         // Implement document retrieval via API

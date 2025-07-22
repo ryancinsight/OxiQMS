@@ -194,8 +194,50 @@ pub fn get_current_project_path() -> Result<std::path::PathBuf, crate::error::Qm
             None => break,
         }
     }
-    
+
     Err(crate::error::QmsError::not_found("No QMS project found. Use 'qms init' to create a project."))
+}
+
+/// Check if a QMS project exists without throwing an error
+/// Used by web server to determine whether to show setup page or main application
+pub fn qms_project_exists() -> bool {
+    use std::env;
+
+    // First check if QMS_PROJECT_PATH environment variable is set
+    if let Ok(project_path) = env::var("QMS_PROJECT_PATH") {
+        let path = std::path::PathBuf::from(project_path);
+        if path.exists() && path.join("project.json").exists() {
+            return true;
+        }
+    }
+
+    // Check current directory and parent directories for project.json
+    if let Ok(current_dir) = env::current_dir() {
+        let mut dir = current_dir.as_path();
+        loop {
+            let project_file = dir.join("project.json");
+            if project_file.exists() {
+                return true;
+            }
+
+            match dir.parent() {
+                Some(parent) => dir = parent,
+                None => break,
+            }
+        }
+    }
+
+    false
+}
+
+/// Get the current project path if it exists, otherwise return None
+/// Safe version that doesn't throw errors - used for conditional initialization
+pub fn get_current_project_path_safe() -> Option<std::path::PathBuf> {
+    if qms_project_exists() {
+        get_current_project_path().ok()
+    } else {
+        None
+    }
 }
 
 /// Calculate MD5 hash of a string (simple implementation)

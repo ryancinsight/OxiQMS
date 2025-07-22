@@ -106,6 +106,12 @@ impl AssetManager {
             "text/html; charset=utf-8"
         ));
 
+        // Setup page for initial QMS configuration
+        assets.insert("/setup.html".to_string(), Asset::new(
+            include_str!("../web_assets/setup.html").as_bytes().to_vec(),
+            "text/html; charset=utf-8"
+        ));
+
         assets.insert("/styles.css".to_string(), Asset::new(
             include_str!("../web_assets/styles.css").as_bytes().to_vec(),
             "text/css"
@@ -137,6 +143,12 @@ impl AssetManager {
         // Service worker for offline support (PWA)
         assets.insert("/sw.js".to_string(), Asset::new(
             include_str!("../web_assets/sw.js").as_bytes().to_vec(),
+            "application/javascript"
+        ));
+
+        // Setup wizard JavaScript
+        assets.insert("/setup.js".to_string(), Asset::new(
+            include_str!("../web_assets/setup.js").as_bytes().to_vec(),
             "application/javascript"
         ));
 
@@ -325,15 +337,30 @@ impl Asset {
     }
 
     /// Check if content should be compressed
+    /// Following SOLID principles: Single Responsibility for compression decision logic
+    /// Medical Device Compliance: Deterministic compression rules for audit trail
     fn should_compress_content(content: &[u8], content_type: &str) -> bool {
-        // Compress text-based content larger than 1KB for medical device web interfaces
-        // Maintains performance while ensuring data integrity
-        content.len() > 1024 && (
-            content_type.starts_with("text/html") ||
-            content_type.starts_with("text/css") ||
-            content_type.starts_with("application/javascript") ||
-            content_type.starts_with("application/json")
-        )
+        // Minimum size threshold for compression (avoid overhead for small files)
+        const MIN_COMPRESSION_SIZE: usize = 1000;
+
+        // Only compress if content is large enough
+        if content.len() < MIN_COMPRESSION_SIZE {
+            return false;
+        }
+
+        // Compress text-based content types that benefit from compression
+        // Following medical device compliance: explicit, auditable rules
+        match content_type {
+            // Web text content
+            "text/html" | "text/css" | "text/plain" | "text/xml" => true,
+            // JavaScript and JSON (but only for non-executable contexts)
+            "application/javascript" | "application/json" | "application/xml" => true,
+            // Don't compress already compressed formats
+            "image/png" | "image/jpeg" | "image/gif" | "image/webp" => false,
+            "application/zip" | "application/gzip" | "application/pdf" => false,
+            // Default: don't compress unknown types for safety
+            _ => false,
+        }
     }
 
     /// Simulate compression for stdlib-only implementation

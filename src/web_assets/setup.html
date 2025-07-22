@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QMS Setup - Medical Device Quality Management System</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico">
+    <meta name="description" content="QMS Setup - Initialize your FDA 21 CFR Part 820 & ISO 13485 Compliant Quality Management System">
+    <meta name="theme-color" content="#3498db">
+    <style>
+        .setup-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .setup-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .setup-header h1 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        .setup-header p {
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+        .setup-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            padding: 0 1rem;
+        }
+        .setup-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        .setup-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 15px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: #ecf0f1;
+            z-index: -1;
+        }
+        .setup-step.active::after {
+            background: #3498db;
+        }
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #ecf0f1;
+            color: #7f8c8d;
+            line-height: 30px;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .setup-step.active .step-number {
+            background: #3498db;
+            color: white;
+        }
+        .setup-step.completed .step-number {
+            background: #27ae60;
+            color: white;
+        }
+        .setup-form {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 6px;
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        .directory-picker {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .directory-picker input {
+            flex: 1;
+        }
+        .directory-picker button {
+            padding: 0.75rem 1rem;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .directory-picker button:hover {
+            background: #2980b9;
+        }
+        .setup-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        .btn-primary:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        .error-message {
+            background: #e74c3c;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .success-message {
+            background: #27ae60;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        .compliance-notice {
+            background: #f39c12;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: #ecf0f1;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #3498db;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <div class="setup-header">
+            <h1>🏥 QMS Setup Wizard</h1>
+            <p>Initialize your Medical Device Quality Management System</p>
+            <div class="compliance-notice">
+                <strong>🔒 Regulatory Compliance:</strong> This setup will create a system compliant with FDA 21 CFR Part 820, ISO 13485, and ISO 14971 standards.
+            </div>
+        </div>
+
+        <div class="setup-steps">
+            <div class="setup-step active" id="step-1">
+                <div class="step-number">1</div>
+                <div>Project Location</div>
+            </div>
+            <div class="setup-step" id="step-2">
+                <div class="step-number">2</div>
+                <div>Administrator Account</div>
+            </div>
+            <div class="setup-step" id="step-3">
+                <div class="step-number">3</div>
+                <div>Initialize System</div>
+            </div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+        </div>
+
+        <div class="error-message" id="error-message"></div>
+        <div class="success-message" id="success-message"></div>
+
+        <!-- Debug indicator -->
+        <div id="debug-status" style="background: #f39c12; color: white; padding: 0.5rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.9rem;">
+            🔄 Loading setup wizard...
+        </div>
+
+        <!-- Step 1: Project Location -->
+        <div class="setup-form" id="step-1-form">
+            <h3>📁 Select Project Location</h3>
+            <p>Choose where to create your QMS project. This directory will contain all your quality management documents, risk assessments, and audit trails.</p>
+            
+            <div class="form-group">
+                <label for="project-directory">Project Directory:</label>
+                <div class="directory-picker">
+                    <input type="text" id="project-directory" placeholder="Select a directory for your QMS project..." readonly>
+                    <button type="button" id="browse-directory">Browse</button>
+                </div>
+                <small style="color: #7f8c8d; margin-top: 0.5rem; display: block;">
+                    The selected directory must be writable and will be used to store all QMS data.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="project-name">Project Name:</label>
+                <input type="text" id="project-name" placeholder="Enter project name (e.g., 'Medical Device QMS')" required>
+                <small style="color: #7f8c8d; margin-top: 0.5rem; display: block;">
+                    This name will be used to identify your QMS project.
+                </small>
+            </div>
+        </div>
+
+        <!-- Step 2: Administrator Account -->
+        <div class="setup-form hidden" id="step-2-form">
+            <h3>👤 Create Administrator Account</h3>
+            <p>Create the initial administrator account. This user will have full access to manage the QMS system.</p>
+            
+            <div class="form-group">
+                <label for="admin-username">Username:</label>
+                <input type="text" id="admin-username" placeholder="Enter administrator username" required>
+            </div>
+
+            <div class="form-group">
+                <label for="admin-email">Email Address:</label>
+                <input type="email" id="admin-email" placeholder="Enter administrator email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="admin-password">Password:</label>
+                <input type="password" id="admin-password" placeholder="Enter secure password (min 8 characters)" required>
+            </div>
+
+            <div class="form-group">
+                <label for="admin-password-confirm">Confirm Password:</label>
+                <input type="password" id="admin-password-confirm" placeholder="Confirm password" required>
+            </div>
+        </div>
+
+        <!-- Step 3: Initialize System -->
+        <div class="setup-form hidden" id="step-3-form">
+            <h3>🚀 Initialize QMS System</h3>
+            <p>Review your settings and initialize the Quality Management System.</p>
+            
+            <div style="background: white; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                <h4>Setup Summary:</h4>
+                <p><strong>Project Location:</strong> <span id="summary-directory"></span></p>
+                <p><strong>Project Name:</strong> <span id="summary-project-name"></span></p>
+                <p><strong>Administrator:</strong> <span id="summary-admin-username"></span></p>
+                <p><strong>Email:</strong> <span id="summary-admin-email"></span></p>
+            </div>
+
+            <div style="background: #e8f5e8; padding: 1rem; border-radius: 4px; border-left: 4px solid #27ae60;">
+                <h4>✅ What will be created:</h4>
+                <ul>
+                    <li>QMS project structure with regulatory compliance folders</li>
+                    <li>Initial configuration files (FDA 21 CFR Part 820 compliant)</li>
+                    <li>Audit logging system with chain integrity</li>
+                    <li>Administrator user account with full permissions</li>
+                    <li>Document management system</li>
+                    <li>Risk management framework (ISO 14971)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="setup-actions">
+            <button type="button" class="btn btn-secondary hidden" id="back-button">← Back</button>
+            <div>
+                <button type="button" class="btn btn-primary" id="next-button">Next →</button>
+                <button type="button" class="btn btn-primary hidden" id="initialize-button">Initialize QMS</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/setup.js"></script>
+</body>
+</html>

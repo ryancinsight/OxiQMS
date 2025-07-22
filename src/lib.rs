@@ -16,7 +16,7 @@ pub mod modules;
 pub mod prelude;
 pub mod utils;
 pub mod validation;
-// pub mod web;
+pub mod web;
 pub mod wasm;
 
 // Integration tests module - temporarily disabled due to API mismatches
