@@ -22,27 +22,86 @@
 ehthumbs.db
 Thumbs.db
 
-# QMS specific temporary files
-/temp/
-/logs/
+# QMS Project Data - User Generated Content (DO NOT COMMIT)
+# ================================================================
+# Project directories with UUID names (runtime-generated projects)
+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f]-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]/
+
+# User-generated document storage
+/documents/
+!/documents/.gitkeep
+
+# Runtime trace and traceability data
+/trace/
+!/trace/.gitkeep
+
+# Risk management data (user-generated)
+/risks/
+!/risks/.gitkeep
+
+# User management data
+/users/
+!/users/.gitkeep
+
+# Requirements data
+/requirements/
+!/requirements/.gitkeep
+
+# Test case data (user-generated, not test code)
+/tests/
+!/tests/e2e/
+!/tests/integration/
+!/tests/*.rs
+!/tests/*.md
+!/tests/*.bat
+!/tests/*.sh
+
+# QMS Runtime Files
+# ================================================================
+# Database and storage files
+*.db
+*.sqlite
+*.sqlite3
+/data/
+/storage/
+
+# Backup files (user-generated backups, not code backups)
 /backups/
+*.backup
+*.bak
+
+# Log files and temporary data
+/logs/
 *.log
 *.tmp
+/temp/
+/tmp/
 
-# Test artifacts
-/test_output/
-/coverage/
+# Configuration files with sensitive data
+/config/
+!/config/examples/
+!/config/schemas/
+!/config/*.example.*
+!/config/*.template.*
 
-# Medical device compliance - keep audit trails
-# /audit_logs/ - DO NOT IGNORE - Required for FDA compliance
+# Audit logs (runtime-generated, not source code)
+/audit_logs/
+/audit/
+!/audit_logs/.gitkeep
 
-# Environment files
+# Medical device compliance - preserve structure but not data
+# /audit_logs/ - Keep directory structure for FDA compliance
+# But exclude actual audit data files
+
+# Environment and deployment files
 .env
 .env.local
 .env.production
+.env.development
 
 # Documentation build artifacts
 /docs/build/
+/docs/generated/
 
 # WebAssembly build artifacts
 /pkg/
@@ -55,3 +114,14 @@ node_modules/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+
+# Test artifacts and reports
+/test_output/
+/coverage/
+/test-results/
+!/tests/e2e/test-results/.gitkeep
+
+# Playwright specific (keep config, exclude results)
+/tests/e2e/playwright-report/
+/tests/e2e/test-results/
+!/tests/e2e/test-results/.gitkeep

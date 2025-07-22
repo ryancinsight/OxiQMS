@@ -51,9 +51,30 @@ cargo build --release
 # Run tests
 cargo test
 
+# Initialize a new QMS project (creates project data directories)
+cargo run -- init --project "My Medical Device"
+
 # Start the web server
 cargo run --bin qms
 ```
+
+### First-Time Setup
+
+After cloning the repository, you'll need to set up your project configuration:
+
+1. **Copy the example configuration:**
+   ```bash
+   cp config/config.example.json config/config.json
+   ```
+
+2. **Edit the configuration** to match your project requirements
+
+3. **Initialize your first project:**
+   ```bash
+   cargo run -- init --project "Your Project Name"
+   ```
+
+The application will create the necessary data directories and project structure automatically.
 
 ## 📖 Usage
 
@@ -93,6 +114,25 @@ src/
 ├── constants.rs               # Regulatory compliance constants
 └── config.rs                  # Configuration management
 ```
+
+### Repository Structure
+
+This repository contains only the source code and templates. User data and project files are created at runtime:
+
+```
+OxiQMS/
+├── src/                       # Source code (tracked in Git)
+├── templates/                 # Document templates (tracked in Git)
+├── config/                    # Configuration directory
+│   ├── config.example.json    # Example configuration (tracked)
+│   └── config.json           # Your config (ignored by Git)
+├── documents/                 # User documents (ignored by Git)
+├── trace/                     # Traceability data (ignored by Git)
+├── [uuid-directories]/        # Project data (ignored by Git)
+└── tests/                     # Test code (tracked in Git)
+```
+
+**Note**: The repository excludes user-generated content, project data, and runtime files. These are created automatically when you initialize and use the QMS system.
 
 ### Key Design Patterns
 - **Repository Pattern** - Data access abstraction
