@@ -1,0 +1,42 @@
+{
+  "name": "qms-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-End Testing for QMS Medical Device Quality Management System",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && playwright test",
+    "test:headed": "npm run build && playwright test --headed",
+    "test:debug": "npm run build && playwright test --debug",
+    "test:ui": "npm run build && playwright test --ui",
+    "test:report": "playwright show-report",
+    "test:codegen": "playwright codegen",
+    "test:chrome": "npm run build && playwright test --project=chromium",
+    "test:firefox": "npm run build && playwright test --project=firefox",
+    "test:safari": "npm run build && playwright test --project=webkit",
+    "test:mobile": "npm run build && playwright test --project='Mobile Chrome' --project='Mobile Safari'",
+    "test:cross-browser": "npm run build && playwright test --project=chromium --project=firefox --project=webkit",
+    "install": "playwright install",
+    "install:deps": "playwright install-deps",
+    "clean": "rm -rf test-results/ playwright-report/ .playwright/"
+  },
+  "keywords": [
+    "medical-device",
+    "quality-management",
+    "fda-compliance",
+    "iso-13485",
+    "iso-14971",
+    "e2e-testing",
+    "playwright"
+  ],
+  "author": "QMS Development Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0"
+  }
+}

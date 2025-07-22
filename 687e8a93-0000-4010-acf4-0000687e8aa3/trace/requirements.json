@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "data": [
+    {
+      "version": "1.0",
+      "id": "7ab25767-bf04-3df1-4682-00118d41679d",
+      "project_id": "current_project",
+      "req_id": "REQ-005",
+      "title": "FDA 21 CFR Part 820 Compliance",
+      "description": "System design and manufacturing shall comply with FDA 21 CFR Part 820 Quality System Regulation",
+      "category": "regulatory",
+      "priority": "medium",
+      "source": "",
+      "rationale": "",
+      "acceptance_criteria": "",
+      "verification_method": "test",
+      "status": "draft",
+      "created_at": "1753123671",
+      "updated_at": "1753123671",
+      "created_by": "current_user",
+      "assigned_to": null,
+      "tags": [],
+      "linked_requirements": [],
+      "linked_tests": [],
+      "linked_risks": []
+    }
+  ]
+}

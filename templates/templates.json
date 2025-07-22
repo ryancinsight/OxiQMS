@@ -1,0 +1,53 @@
+{
+  "version": "1.0",
+  "templates": [
+    {
+      "name": "srs_template",
+      "display_name": "Software Requirements Specification",
+      "description": "Template for software requirements specification following IEC 62304",
+      "doc_type": "SoftwareRequirementsSpecification",
+      "variables": ["PROJECT_NAME", "DATE", "USER", "VERSION"],
+      "category": "requirements"
+    },
+    {
+      "name": "sdd_template",
+      "display_name": "Software Design Description",
+      "description": "Template for software design documentation",
+      "doc_type": "SoftwareDesignDescription", 
+      "variables": ["PROJECT_NAME", "DATE", "USER", "VERSION"],
+      "category": "design"
+    },
+    {
+      "name": "test_protocol_template",
+      "display_name": "Test Protocol",
+      "description": "Template for test protocols and verification procedures",
+      "doc_type": "TestProtocol",
+      "variables": ["PROJECT_NAME", "DATE", "USER", "VERSION"],
+      "category": "testing"
+    },
+    {
+      "name": "rmf_template",
+      "display_name": "Risk Management File",
+      "description": "Template for risk management documentation per ISO 14971",
+      "doc_type": "RiskManagementFile",
+      "variables": ["PROJECT_NAME", "DATE", "USER", "VERSION"],
+      "category": "risk"
+    },
+    {
+      "name": "user_requirements_template",
+      "display_name": "User Requirements",
+      "description": "Template for capturing user needs and requirements",
+      "doc_type": "UserRequirements",
+      "variables": ["PROJECT_NAME", "DATE", "USER", "VERSION"],
+      "category": "requirements"
+    },
+    {
+      "name": "generic_template",
+      "display_name": "Generic Document",
+      "description": "Generic template for any document type",
+      "doc_type": "Other",
+      "variables": ["PROJECT_NAME", "DATE", "USER", "VERSION"],
+      "category": "general"
+    }
+  ]
+}

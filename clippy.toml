@@ -1,0 +1,14 @@
+# Clippy configuration for QMS project
+# Focus on critical issues while allowing some less critical warnings during development
+
+# Allow format string warnings for now - these are cosmetic improvements
+# that don't affect functionality or safety
+avoid-breaking-exported-api = false
+
+# Allow some performance-related warnings that don't significantly impact
+# the medical device compliance requirements
+too-many-arguments-threshold = 10
+
+# Allow some complexity warnings for regulatory compliance code
+# which often requires detailed parameter validation
+cognitive-complexity-threshold = 50

@@ -1,0 +1,46 @@
+[package]
+name = "qms"
+version = "1.0.0"
+edition = "2021"
+authors = ["QMS Team"]
+description = "Medical Device Quality Management System - FDA 21 CFR Part 820, ISO 13485, ISO 14971 Compliant"
+rust-version = "1.70"
+keywords = ["medical", "quality", "fda", "iso"]
+license = "MIT"
+homepage = "https://github.com/qms-team/qms"
+repository = "https://github.com/qms-team/qms"
+readme = "README.md"
+
+[dependencies]
+md5 = "0.7"
+
+[dev-dependencies]
+tempfile = "3.8"
+
+# Test configuration prioritizing Playwright E2E tests over backend database tests
+[[test]]
+name = "unit_tests"
+path = "src/lib.rs"
+
+[[test]]
+name = "integration_tests"
+path = "tests/lib.rs"
+
+# Custom test profiles
+[profile.test]
+opt-level = 0
+debug = true
+debug-assertions = true
+overflow-checks = true
+lto = false
+panic = 'unwind'
+incremental = true
+codegen-units = 256
+rpath = false
+
+# E2E test configuration
+[package.metadata.playwright]
+test-dir = "tests/e2e"
+config-file = "tests/e2e/playwright.config.ts"
+browsers = ["chromium", "firefox", "webkit"]
+mobile = ["Mobile Chrome", "Mobile Safari"]

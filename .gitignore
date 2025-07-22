@@ -1,0 +1,57 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo lock file (uncomment if this is an executable, not a library)
+# Cargo.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# QMS specific temporary files
+/temp/
+/logs/
+/backups/
+*.log
+*.tmp
+
+# Test artifacts
+/test_output/
+/coverage/
+
+# Medical device compliance - keep audit trails
+# /audit_logs/ - DO NOT IGNORE - Required for FDA compliance
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Documentation build artifacts
+/docs/build/
+
+# WebAssembly build artifacts
+/pkg/
+/www/dist/
+
+# Node modules (if any web components)
+node_modules/
+
+# Lock files for different package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

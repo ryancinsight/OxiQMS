@@ -1,0 +1,17 @@
+{
+    "backup_metadata": {
+    "backup_id": "BACKUP-448852ef-2422-287d-d29b-00118d414ec1-1753123523757",
+    "document_id": "448852ef-2422-287d-d29b-00118d414ec1",
+    "document_version": "1.0.0",
+    "backup_timestamp": 1753123523757,
+    "original_path": "./documents/448852ef-2422-287d-d29b-00118d414ec1/content.md",
+    "backup_path": "./backups/documents/448852ef-2422-287d-d29b-00118d414ec1-1753123523757.json",
+    "checksum": "f39892b53cef8c5d",
+    "file_size": 1830,
+    "created_by": "CLI User",
+    "backup_reason": "Document creation"
+},
+    "document_content": "# Risk Management Plan - CardiacMonitor v2.1\n\n## 1. Executive Summary\nThis Risk Management Plan (RMP) defines the systematic approach for identifying, analyzing, evaluating, and controlling risks associated with the CardiacMonitor v2.1 medical device throughout its lifecycle.\n\n## 2. Scope and Application\n- **Device**: CardiacMonitor v2.1 - Advanced Cardiac Monitoring Device\n- **Classification**: Class II Medical Device (FDA)\n- **Standards**: ISO 14971:2019, IEC 62304, FDA 21 CFR Part 820\n\n## 3. Risk Management Process\n### 3.1 Risk Analysis\n- Hazard identification using FMEA methodology\n- Risk estimation using severity × probability matrix\n- Risk evaluation against acceptability criteria\n\n### 3.2 Risk Control\n- Risk reduction through design controls\n- Protective measures implementation\n- Information for safety documentation\n\n## 4. Risk Acceptability Criteria\n- **High Risk (RPN ≥ 100)**: Unacceptable - Immediate mitigation required\n- **Medium Risk (RPN 50-99)**: Conditional - Risk reduction measures needed\n- **Low Risk (RPN < 50)**: Acceptable - Monitor and document\n\n## 5. Risk Management Activities\n### 5.1 Design Phase\n- Preliminary hazard analysis\n- Design FMEA\n- Software hazard analysis\n\n### 5.2 Verification Phase\n- Risk control verification\n- Residual risk evaluation\n- Risk-benefit analysis\n\n### 5.3 Post-Market Phase\n- Post-market surveillance\n- Risk management file updates\n- Periodic safety updates\n\n## 6. Responsibilities\n- **Risk Manager**: Overall risk management oversight\n- **Design Team**: Risk identification and control implementation\n- **Quality Assurance**: Risk control verification\n- **Regulatory Affairs**: Compliance and reporting\n\n## 7. Documentation\n- Risk management file maintenance\n- Risk analysis reports\n- Risk control effectiveness evidence\n- Post-market risk evaluation reports\n",
+    "backup_timestamp": 1753123523757,
+    "checksum": "f39892b53cef8c5d"
+}

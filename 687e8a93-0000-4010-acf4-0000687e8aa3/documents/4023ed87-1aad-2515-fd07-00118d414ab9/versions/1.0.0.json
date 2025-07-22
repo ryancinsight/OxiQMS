@@ -1,0 +1,22 @@
+{
+  "doc_type": "SRS",
+  "tags":
+[],
+  "updated_at": "1753123499",
+  "approved_by": null,
+  "file_path": "documents/4023ed87-1aad-2515-fd07-00118d414ab9/content.md",
+  "project_id": "40230feb-1aad-2515-ce40-00118d414ab9",
+  "version": "1.0.0",
+  "checksum": "e1b76eb07ab04b",
+  "id": "4023ed87-1aad-2515-fd07-00118d414ab9",
+  "locked_at": null,
+  "locked_by": null,
+  "content": "# Software Requirements Specification - CardiacMonitor v2.1\n\n## 1. Introduction\nThis document specifies the software requirements for the CardiacMonitor v2.1 medical device.\n\n## 2. Functional Requirements\n- FR-001: Real-time ECG signal acquisition at 1000 Hz sampling rate\n- FR-002: AI-enhanced arrhythmia detection with 99.5% accuracy\n- FR-003: Automated alert generation for critical cardiac events\n- FR-004: Secure data transmission to healthcare providers\n\n## 3. Safety Requirements\n- SR-001: System shall detect lead disconnection within 5 seconds\n- SR-002: Battery low warning at 20% capacity\n- SR-003: Fail-safe mode activation on critical system errors\n\n## 4. Regulatory Compliance\n- Compliant with FDA 21 CFR Part 820\n- Meets ISO 13485:2016 requirements\n- Follows IEC 62304 for medical device software\n\n## 5. Performance Requirements\n- PR-001: System response time < 100ms for critical alerts\n- PR-002: 24-hour continuous operation on single battery charge\n- PR-003: Data storage capacity for 30 days of continuous monitoring\n\n## 6. Interface Requirements\n- IR-001: Bluetooth 5.0 connectivity for mobile app integration\n- IR-002: USB-C port for data download and charging\n- IR-003: 3.5\" color touchscreen display with 480x320 resolution\n",
+  "created_at": "1753123499",
+  "status": "Draft",
+  "regulatory_mapping":
+[],
+  "created_by": "CLI User",
+  "locked": false,
+  "title": "Software Requirements Specification"
+}

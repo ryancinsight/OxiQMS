@@ -1,0 +1,18 @@
+[profile.default]
+# Default timeout for tests (30 seconds)
+slow-timeout = { period = "30s", terminate-after = 1 }
+
+# Number of test threads
+test-threads = "num-cpus"
+
+# Cancel test run on first failure
+fail-fast = false
+
+# Show output on failure
+failure-output = "immediate-final"
+success-output = "never"
+
+# For tests that need more time (audit_logger tests)
+[[profile.default.overrides]]
+filter = "test(audit_logger::functions)"
+slow-timeout = { period = "120s", terminate-after = 1 }

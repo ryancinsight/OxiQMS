@@ -1,0 +1,12 @@
+{
+    "backup_id": "BACKUP-4023ed87-1aad-2515-fd07-00118d414ab9-1753123499681",
+    "document_id": "4023ed87-1aad-2515-fd07-00118d414ab9",
+    "document_version": "1.0.0",
+    "backup_timestamp": 1753123499681,
+    "original_path": "./documents/4023ed87-1aad-2515-fd07-00118d414ab9/content.md",
+    "backup_path": "./backups/documents/4023ed87-1aad-2515-fd07-00118d414ab9-1753123499681.json",
+    "checksum": "00e1b76eb07ab04b",
+    "file_size": 1246,
+    "created_by": "CLI User",
+    "backup_reason": "Document creation"
+}

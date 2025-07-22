@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QMS - Medical Device Quality Management System</title>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="description" content="FDA 21 CFR Part 820 & ISO 13485 Compliant Quality Management System">
+    <meta name="theme-color" content="#3498db">
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="container">
+                <h1>🏥 QMS - Medical Device Quality Management</h1>
+                <div class="header-info">
+                    <span class="compliance-indicator">🔒 FDA 21 CFR Part 820 Compliant</span>
+                    <span class="server-status" id="server-status">🟢 Connected</span>
+                </div>
+                <nav>
+                    <a href="#dashboard" class="nav-link active">📊 Dashboard</a>
+                    <a href="#documents" class="nav-link">📄 Documents</a>
+                    <a href="#risks" class="nav-link">⚠️ Risks</a>
+                    <a href="#requirements" class="nav-link">📋 Requirements</a>
+                    <a href="#audit" class="nav-link">🔍 Audit Trail</a>
+                    <a href="#reports" class="nav-link">📈 Reports</a>
+                    <a href="#projects" class="nav-link">🏗️ Projects</a>
+                </nav>
+            </div>
+        </header>
+        
+        <main class="main">
+            <div class="container">
+                <div id="content">
+                    <div class="welcome">
+                        <div class="welcome-header">
+                            <h2>Welcome to QMS Web Interface</h2>
+                            <p>Medical Device Quality Management System</p>
+                            <div class="system-info">
+                                <span id="current-time"></span> | Version 1.0.0 | Build: Production
+                            </div>
+                        </div>
+                        
+                        <div class="compliance-badges">
+                            <span class="badge badge-fda">FDA 21 CFR Part 820</span>
+                            <span class="badge badge-iso">ISO 13485</span>
+                            <span class="badge badge-risk">ISO 14971</span>
+                            <span class="badge badge-cfr">21 CFR Part 11</span>
+                        </div>
+                        
+                        <div class="quick-stats">
+                            <div class="stat-card">
+                                <div class="stat-icon">📄</div>
+                                <h3>Documents</h3>
+                                <p class="stat-number" id="doc-count">Loading...</p>
+                                <span class="stat-label">Active documents</span>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">⚠️</div>
+                                <h3>Risks</h3>
+                                <p class="stat-number" id="risk-count">Loading...</p>
+                                <span class="stat-label">Risk assessments</span>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📋</div>
+                                <h3>Requirements</h3>
+                                <p class="stat-number" id="req-count">Loading...</p>
+                                <span class="stat-label">Tracked requirements</span>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">🔍</div>
+                                <h3>Audit Entries</h3>
+                                <p class="stat-number" id="audit-count">Loading...</p>
+                                <span class="stat-label">Compliance entries</span>
+                            </div>
+                        </div>
+                        
+                        <div class="dashboard-grid">
+                            <div class="dashboard-section">
+                                <h3>📊 System Health</h3>
+                                <div class="health-indicators">
+                                    <div class="health-item">
+                                        <span class="health-label">System Status:</span>
+                                        <span class="health-value" id="system-status">Loading...</span>
+                                    </div>
+                                    <div class="health-item">
+                                        <span class="health-label">Compliance Score:</span>
+                                        <span class="health-value" id="compliance-score">Loading...</span>
+                                    </div>
+                                    <div class="health-item">
+                                        <span class="health-label">Last Audit:</span>
+                                        <span class="health-value" id="last-audit">Loading...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="dashboard-section">
+                                <h3>📈 Recent Activity</h3>
+                                <div id="activity-feed">Loading...</div>
+                            </div>
+                            
+                            <div class="dashboard-section">
+                                <h3>🎯 Quick Actions</h3>
+                                <div class="quick-actions">
+                                    <button class="action-btn" onclick="qmsApp.navigateToSection('documents')">
+                                        📄 Manage Documents
+                                    </button>
+                                    <button class="action-btn" onclick="qmsApp.navigateToSection('risks')">
+                                        ⚠️ Risk Assessment
+                                    </button>
+                                    <button class="action-btn" onclick="qmsApp.navigateToSection('audit')">
+                                        🔍 View Audit Trail
+                                    </button>
+                                    <button class="action-btn" onclick="qmsApp.navigateToSection('reports')">
+                                        📈 Generate Reports
+                                    </button>
+                                    <button class="action-btn" onclick="qmsApp.navigateToSection('projects')">
+                                        🏗️ Manage Projects
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="regulatory-notice">
+                            <h4>🏛️ Regulatory Compliance Notice</h4>
+                            <p>This system is designed to meet FDA 21 CFR Part 820 (Quality System Regulation), 
+                               ISO 13485 (Medical devices - Quality management systems), and ISO 14971 
+                               (Application of risk management to medical devices) requirements. All activities 
+                               are logged for regulatory compliance and audit purposes.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <p>&copy; 2025 QMS - Medical Device Quality Management System</p>
+                        <p>Regulatory Compliant | Audit Ready | Security First</p>
+                    </div>
+                    <div class="footer-section">
+                        <p>Build: 1.0.0 | Runtime: Rust stdlib only</p>
+                        <p>Standards: FDA 21 CFR Part 820, ISO 13485, ISO 14971</p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+    
+    <!-- Loading indicator -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading...</p>
+        </div>
+    </div>
+    
+    <script src="/app.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('QMS SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('QMS SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
