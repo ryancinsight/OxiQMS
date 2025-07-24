@@ -625,11 +625,103 @@ impl RTMGenerator {
         Ok(())
     }
 
-    /// Export RTM as PDF (placeholder - would need PDF generation library)
-    fn export_pdf(&self, _entries: &[RTMEntry], _output_path: &Path, _config: &RTMConfig) -> QmsResult<()> {
-        // PDF export would require additional libraries
-        // For now, we'll create a placeholder that generates HTML instead
-        Err(QmsError::validation_error("PDF export not yet implemented - use HTML format instead"))
+    /// Export RTM as PDF (text-based format for stdlib-only implementation)
+    fn export_pdf(&self, entries: &[RTMEntry], output_path: &Path, config: &RTMConfig) -> QmsResult<()> {
+        let mut content = String::new();
+        let line_width = 80;
+
+        // PDF Header
+        content.push_str(&"=".repeat(line_width));
+        content.push('\n');
+        content.push_str(&Self::center_text("REQUIREMENTS TRACEABILITY MATRIX", line_width));
+        content.push('\n');
+        content.push_str(&"=".repeat(line_width));
+        content.push('\n');
+        content.push('\n');
+
+        // Metadata
+        content.push_str(&format!("Generated: {}\n", crate::utils::current_timestamp_string()));
+        content.push_str(&format!("Total Entries: {}\n", entries.len()));
+        content.push_str("Project: Current Project\n"); // RTMConfig doesn't have project_id field
+        content.push('\n');
+        content.push_str(&"-".repeat(line_width));
+        content.push('\n');
+        content.push('\n');
+
+        // RTM Entries
+        for (index, entry) in entries.iter().enumerate() {
+            content.push_str(&format!("Entry {}: {}\n", index + 1, entry.requirement_id));
+            content.push_str(&"-".repeat(40));
+            content.push('\n');
+
+            content.push_str(&format!("Requirement: {}\n", entry.requirement_description));
+            content.push_str(&format!("Category: {}\n", entry.requirement_category));
+            content.push_str(&format!("Priority: {}\n", entry.requirement_priority));
+            content.push_str(&format!("Status: {}\n", entry.requirement_status));
+
+            if !entry.linked_test_cases.is_empty() {
+                content.push_str("Linked Test Cases:\n");
+                for test_case in &entry.linked_test_cases {
+                    content.push_str(&format!("  - {}\n", test_case));
+                }
+            }
+
+            if !entry.linked_design_elements.is_empty() {
+                content.push_str("Linked Design Elements:\n");
+                for design in &entry.linked_design_elements {
+                    content.push_str(&format!("  - {}\n", design));
+                }
+            }
+
+            if !entry.verification_method.is_empty() {
+                content.push_str(&format!("Verification Method: {}\n", entry.verification_method));
+                content.push_str(&format!("Verification Status: {}\n", entry.verification_status));
+            }
+
+            content.push('\n');
+        }
+
+        // Summary
+        content.push_str(&"=".repeat(line_width));
+        content.push('\n');
+        content.push_str(&Self::center_text("SUMMARY", line_width));
+        content.push('\n');
+        content.push_str(&"=".repeat(line_width));
+        content.push('\n');
+        content.push('\n');
+
+        let total_requirements = entries.len();
+        let tested_requirements = entries.iter().filter(|e| !e.linked_test_cases.is_empty()).count();
+        let verified_requirements = entries.iter().filter(|e| !e.verification_method.is_empty()).count();
+
+        content.push_str(&format!("Total Requirements: {}\n", total_requirements));
+        content.push_str(&format!("Requirements with Tests: {} ({:.1}%)\n",
+            tested_requirements,
+            if total_requirements > 0 { (tested_requirements as f64 / total_requirements as f64) * 100.0 } else { 0.0 }
+        ));
+        content.push_str(&format!("Requirements with Verification: {} ({:.1}%)\n",
+            verified_requirements,
+            if total_requirements > 0 { (verified_requirements as f64 / total_requirements as f64) * 100.0 } else { 0.0 }
+        ));
+
+        content.push('\n');
+        content.push_str("Note: This is a text-based PDF format. For graphical PDF output,\n");
+        content.push_str("convert this file using external tools like pandoc or wkhtmltopdf.\n");
+
+        // Write to file
+        std::fs::write(output_path, content)?;
+
+        Ok(())
+    }
+
+    /// Center text within a given width
+    fn center_text(text: &str, width: usize) -> String {
+        if text.len() >= width {
+            return text.to_string();
+        }
+
+        let padding = (width - text.len()) / 2;
+        format!("{}{}", " ".repeat(padding), text)
     }
 
     /// Export RTM as Markdown

@@ -13,16 +13,33 @@ pub mod factories;
 // Canonical implementations
 pub mod implementations;
 
+// User profile management
+pub mod profile_manager;
+
+// Startup authentication service
+pub mod startup_auth_service;
+
+// Unified authentication service
+pub mod unified_auth_service;
+
+// Unified authentication factory
+pub mod unified_auth_factory;
+
 // Legacy compatibility (will be removed after consolidation)
 pub mod auth;
 pub mod roles;
 
 // Public API exports - Interface Segregation Principle
 pub use interfaces::{
-    UserAuthenticator, UserAuthorizer, UserStorage, SessionManager, RoleProvider
+    UserAuthenticator, UserAuthorizer, UserStorage, SessionManager, RoleProvider, SessionStorage, UserSession, SessionType
 };
 
 pub use factories::UserManagerFactory;
+pub use profile_manager::{UserProfileManager, ProfileSummary, SetupValidation};
+pub use startup_auth_service::{StartupAuthService, StartupAuthResult, AdminSetupRequest, QmsFolderSetupRequest, SystemStats};
+pub use unified_auth_service::UnifiedAuthenticationService;
+pub use unified_auth_factory::{UnifiedAuthFactory, FileBasedAuthService};
+pub use implementations::{FileUserStorage, FileSessionStorage};
 
 // Legacy exports for backward compatibility
 pub use auth::{AuthManager, FileAuthManager, MemoryAuthManager};

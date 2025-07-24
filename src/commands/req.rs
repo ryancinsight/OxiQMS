@@ -158,12 +158,12 @@ fn handle_req_create(args: &[String]) -> Result<(), String> {
     
     // Create requirement
     let id = manager.create_requirement(
-        "current_project".to_string(), // TODO: Get actual project ID
+        crate::utils::user_context::get_current_project_id(), // Get actual project ID from project context
         req_id.clone(),
         title.clone(),
         description.clone(),
         category.clone(),
-        "current_user".to_string(), // TODO: Get actual user ID
+        crate::utils::user_context::get_current_user_id(), // Get actual user ID from context
     ).map_err(|e| format!("Failed to create requirement: {e}"))?;
     
     println!("✅ Requirement created successfully");

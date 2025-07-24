@@ -15,6 +15,7 @@ mod lock;
 mod models;
 mod modules;
 mod prelude;
+mod tui;
 mod utils;
 mod validation;
 mod web;
@@ -25,6 +26,7 @@ mod web;
 use audit::{log_command_execution, log_error};
 use commands::{audit as audit_cmd, doc, init, report, req, risk, test, trace, user};
 use web::server::QMSWebServer;
+use tui::app::run_tui;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -33,6 +35,14 @@ fn main() {
     if let Err(e) = audit::setup_audit_logger() {
         eprintln!("Error: Failed to initialize audit logger: {e}");
         process::exit(1);
+    }
+
+    // Initialize user context system
+    if let Ok(project_path) = utils::get_current_project_path() {
+        if let Err(e) = utils::user_context::initialize_cli_context(project_path, None) {
+            eprintln!("Warning: Failed to initialize user context: {e}");
+            // Continue execution - user context is optional for some operations
+        }
     }
 
     // Parse command line arguments
@@ -110,6 +120,12 @@ fn main() {
                 log_command_execution("serve");
                 if let Err(e) = handle_serve_command(&args) {
                     handle_error(format!("Web server failed: {e}"));
+                }
+            }
+            "tui" => {
+                log_command_execution("tui");
+                if let Err(e) = handle_tui_command(&args) {
+                    handle_error(format!("TUI failed: {e}"));
                 }
             }
             _ => {
@@ -322,9 +338,20 @@ fn print_serve_help() {
     println!("      and regulatory compliance in medical device environments.");
 }
 
+fn handle_tui_command(args: &[String]) -> Result<(), String> {
+    // Skip "qms" and "tui" to get TUI-specific arguments
+    let tui_args = if args.len() > 2 {
+        &args[2..]
+    } else {
+        &[]
+    };
+
+    run_tui(tui_args).map_err(|e| e.to_string())
+}
+
 fn print_usage() {
     println!("Usage: qms <command> [options]");
-    println!("Commands: init, doc, risk, req, trace, test, audit, user, report, serve");
+    println!("Commands: init, doc, risk, req, trace, test, audit, user, report, serve, tui");
     println!("Use 'qms --help' for detailed help");
 }
 
@@ -361,8 +388,9 @@ fn print_help() {
     println!("        user      User management with role-based access control");
     println!("        report    Regulatory compliance reports (DHF, CFR compliance)");
     println!();
-    println!("    🌐 Web Interface:");
+    println!("    🌐 User Interfaces:");
     println!("        serve     Start web-based GUI for QMS operations");
+    println!("        tui       Start terminal user interface (TUI)");
     println!();
     println!("OPTIONS:");
     println!("    -h, --help    Show this help message");

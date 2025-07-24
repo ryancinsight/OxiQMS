@@ -102,6 +102,14 @@ impl HttpResponse {
         self
     }
 
+    /// Create a new HTTP response with status and body
+    pub fn new_with_body(status: HttpStatus, body: String) -> Self {
+        let mut response = Self::new(status);
+        response.set_body(body.into_bytes());
+        response.set_content_type("application/json");
+        response
+    }
+
     pub fn json(json_string: &str) -> Self {
         let mut response = Self::new(HttpStatus::Ok);
         response.set_body(json_string.as_bytes().to_vec());

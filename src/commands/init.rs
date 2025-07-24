@@ -1,8 +1,13 @@
+use crate::commands::cli_auth_helper::{get_cli_auth_helper, require_cli_authentication};
 use crate::modules::repository::project::{Repository, RepositoryError};
 use crate::utils::format_timestamp;
 use std::process;
 
 pub fn handle_init_command(args: &[String]) -> Result<(), RepositoryError> {
+    // Require authentication before creating projects
+    let session = require_cli_authentication()
+        .map_err(|e| RepositoryError::InvalidInput(format!("Authentication required: {e}")))?;
+
     let mut project_name = None;
     let mut custom_path = None;
 
@@ -52,7 +57,18 @@ pub fn handle_init_command(args: &[String]) -> Result<(), RepositoryError> {
         }
     };
 
-    match Repository::init_project(&name, custom_path.as_deref()) {
+    // Get user-specific project directory
+    let auth_helper = get_cli_auth_helper()
+        .map_err(|e| RepositoryError::InvalidInput(format!("Failed to get auth helper: {e}")))?;
+
+    let user_projects_dir = auth_helper.get_user_project_directory(&session.username)
+        .map_err(|e| RepositoryError::InvalidInput(format!("Failed to get user project directory: {e}")))?;
+
+    // Use custom path if provided, otherwise use user-specific directory
+    let project_base_path = custom_path.as_deref().map(|p| std::path::Path::new(p).to_path_buf())
+        .unwrap_or(user_projects_dir);
+
+    match Repository::init_project_in_directory(&name, &project_base_path) {
         Ok(project) => {
             println!("✓ QMS project '{name}' initialized successfully");
             println!("  Project ID: {}", project.id);

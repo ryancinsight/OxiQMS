@@ -5,6 +5,9 @@
 
 use std::path::PathBuf;
 
+// User profile model for global user management
+pub mod user_profile;
+
 /// Project represents a QMS project
 #[derive(Debug, Clone)]
 pub struct Project {
@@ -174,6 +177,13 @@ pub enum Permission {
     ExportAudit,
     ManageUsers,
     GenerateReports,
+    // Additional permissions for global user management
+    UserManagement,
+    ProjectManagement,
+    DocumentManagement,
+    RiskManagement,
+    AuditAccess,
+    SystemConfiguration,
 }
 
 /// User role with permissions

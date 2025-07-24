@@ -222,14 +222,14 @@ impl FMEAManager {
         
         let analysis = FMEAAnalysis {
             id: id.clone(),
-            project_id: "current".to_string(), // TODO: Get actual project ID
+            project_id: crate::utils::user_context::get_current_project_id(), // Get actual project ID
             name: name.to_string(),
             component: component.to_string(),
             function: function.to_string(),
             description: format!("FMEA analysis for {component} - {function}"),
             created_at: current_time.to_string(),
             updated_at: current_time.to_string(),
-            created_by: "current_user".to_string(), // TODO: Get actual user
+            created_by: crate::utils::user_context::get_current_user_id(), // Get actual user
             status: FMEAStatus::Draft,
             failure_modes: Vec::new(),
             scope: format!("Analysis of {component} component focusing on {function} function"),

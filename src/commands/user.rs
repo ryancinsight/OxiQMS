@@ -1,3 +1,4 @@
+use crate::commands::cli_auth_helper::{get_cli_auth_helper, require_cli_authentication, get_authenticated_project_path};
 use crate::modules::user_manager::{FileAuthManager, RoleManager, Permission};
 use crate::utils::get_current_project_path;
 use std::io::{self, Write};
@@ -83,9 +84,29 @@ fn handle_user_add(args: &[String]) -> Result<(), String> {
         password = password.trim().to_string();
     }
     
-    let project_path = get_current_project_path()
+    // Check if this is initial setup (no users exist) or requires authentication
+    let auth_helper = get_cli_auth_helper()
+        .map_err(|e| format!("Failed to initialize authentication: {e}"))?;
+
+    if auth_helper.has_any_users() {
+        // Require authentication if users already exist
+        let _session = require_cli_authentication()
+            .map_err(|e| format!("Authentication required: {e}"))?;
+    } else {
+        println!("🔧 Initial setup detected - creating first admin user without authentication");
+    }
+
+    // Use bootstrap mechanism for initial user creation
+    if !auth_helper.has_any_users() {
+        // Initial setup - create user directly
+        auth_helper.create_user_if_not_exists(&username, &password)
+            .map_err(|e| format!("Failed to create initial user: {e}"))?;
+        return Ok(());
+    }
+
+    let project_path = get_authenticated_project_path()
         .map_err(|e| format!("Failed to get project path: {e}"))?;
-    
+
     let auth_manager = FileAuthManager::from_project_path(&project_path)
         .map_err(|e| format!("Failed to initialize auth manager: {e}"))?;
     
@@ -128,9 +149,13 @@ fn handle_user_list(args: &[String]) -> Result<(), String> {
         }
     }
     
-    let project_path = get_current_project_path()
+    // Require authentication to list users
+    let _session = require_cli_authentication()
+        .map_err(|e| format!("Authentication required: {e}"))?;
+
+    let project_path = get_authenticated_project_path()
         .map_err(|e| format!("Failed to get project path: {e}"))?;
-    
+
     let auth_manager = FileAuthManager::from_project_path(&project_path)
         .map_err(|e| format!("Failed to initialize auth manager: {e}"))?;
     
@@ -217,59 +242,38 @@ fn handle_user_login(args: &[String]) -> Result<(), String> {
         password = password.trim().to_string();
     }
     
-    let project_path = get_current_project_path()
-        .map_err(|e| format!("Failed to get project path: {e}"))?;
-    
-    let mut auth_manager = FileAuthManager::from_project_path(&project_path)
-        .map_err(|e| format!("Failed to initialize auth manager: {e}"))?;
-    
-    let session = auth_manager.login(&username, &password)
-        .map_err(|e| format!("Login failed: {e}"))?;
-    
+    let auth_helper = get_cli_auth_helper()
+        .map_err(|e| format!("Failed to initialize authentication: {e}"))?;
+
+    let session = if username.is_empty() || password.is_empty() {
+        // Interactive login
+        auth_helper.interactive_login()
+            .map_err(|e| format!("Login failed: {e}"))?
+    } else {
+        // Direct login
+        auth_helper.login(&username, &password)
+            .map_err(|e| format!("Login failed: {e}"))?
+    };
+
     println!("✅ Login successful");
     println!("   User: {}", session.username);
     println!("   Session ID: {}", session.session_id);
-    println!("   Login Time: {}", format_timestamp(session.login_time));
+    println!("   Session Type: {:?}", session.session_type);
     println!("   Roles: {}", session.roles.iter().map(|r| r.name.as_str()).collect::<Vec<_>>().join(", "));
     
     Ok(())
 }
 
 /// Handle user logout command
-fn handle_user_logout(args: &[String]) -> Result<(), String> {
-    let mut session_id = String::new();
-    
-    let mut i = 0;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--session" | "-s" => {
-                if i + 1 >= args.len() {
-                    return Err("Missing session ID value".to_string());
-                }
-                session_id = args[i + 1].clone();
-                i += 2;
-            }
-            _ => {
-                return Err(format!("Unknown argument: {}", args[i]));
-            }
-        }
-    }
-    
-    if session_id.is_empty() {
-        return Err("Session ID is required".to_string());
-    }
-    
-    let project_path = get_current_project_path()
-        .map_err(|e| format!("Failed to get project path: {e}"))?;
-    
-    let mut auth_manager = FileAuthManager::from_project_path(&project_path)
-        .map_err(|e| format!("Failed to initialize auth manager: {e}"))?;
-    
-    auth_manager.logout(&session_id)
+fn handle_user_logout(_args: &[String]) -> Result<(), String> {
+    let auth_helper = get_cli_auth_helper()
+        .map_err(|e| format!("Failed to initialize authentication: {e}"))?;
+
+    auth_helper.logout()
         .map_err(|e| format!("Logout failed: {e}"))?;
-    
+
     println!("✅ Logout successful");
-    
+
     Ok(())
 }
 
@@ -626,6 +630,12 @@ const fn permission_to_string(permission: &Permission) -> &str {
         Permission::ExportAudit => "Export Audit",
         Permission::ManageUsers => "Manage Users",
         Permission::GenerateReports => "Generate Reports",
+        Permission::UserManagement => "User Management",
+        Permission::ProjectManagement => "Project Management",
+        Permission::DocumentManagement => "Document Management",
+        Permission::RiskManagement => "Risk Management",
+        Permission::AuditAccess => "Audit Access",
+        Permission::SystemConfiguration => "System Configuration",
     }
 }
 

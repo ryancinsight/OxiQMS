@@ -73,24 +73,36 @@ mod tests {
     
     #[test]
     fn test_json_serialization() {
-        // Test basic JSON operations
-        // TODO: Fix serde_json dependency issue
-        /*
-        let data = serde_json::json!({
-            "id": "RISK-001",
-            "title": "Test Risk",
-            "severity": 3,
-            "probability": 2
-        });
-        
-        let json_string = serde_json::to_string(&data).unwrap();
+        // Test basic JSON operations using stdlib-only JSON utilities
+        use crate::json_utils::JsonValue;
+        use std::collections::HashMap;
+
+        // Create test data using our JSON utilities
+        let mut data = HashMap::new();
+        data.insert("id".to_string(), JsonValue::String("RISK-001".to_string()));
+        data.insert("title".to_string(), JsonValue::String("Test Risk".to_string()));
+        data.insert("severity".to_string(), JsonValue::Number(3.0));
+        data.insert("probability".to_string(), JsonValue::Number(2.0));
+
+        let json_obj = JsonValue::Object(data);
+        let json_string = json_obj.json_to_string();
+
+        // Verify JSON contains expected data
         assert!(json_string.contains("RISK-001"));
-        
-        let parsed: serde_json::Value = serde_json::from_str(&json_string).unwrap();
-        assert_eq!(parsed["id"], "RISK-001");
-        */
-        
-        // For now, just pass the test
-        assert!(true);
+        assert!(json_string.contains("Test Risk"));
+        assert!(json_string.contains("3"));
+        assert!(json_string.contains("2"));
+
+        // Test parsing back
+        let parsed = JsonValue::parse(&json_string).unwrap();
+        if let JsonValue::Object(obj) = parsed {
+            if let Some(JsonValue::String(id)) = obj.get("id") {
+                assert_eq!(id, "RISK-001");
+            } else {
+                panic!("Expected id field to be a string");
+            }
+        } else {
+            panic!("Expected parsed JSON to be an object");
+        }
     }
 }

@@ -376,6 +376,32 @@ impl FileUserStorage {
         Ok(permissions)
     }
     
+    /// Convert permission to string for serialization
+    fn permission_to_string(&self, permission: &Permission) -> &str {
+        match permission {
+            Permission::ReadDocuments => "ReadDocuments",
+            Permission::WriteDocuments => "WriteDocuments",
+            Permission::DeleteDocuments => "DeleteDocuments",
+            Permission::ReadRisks => "ReadRisks",
+            Permission::WriteRisks => "WriteRisks",
+            Permission::DeleteRisks => "DeleteRisks",
+            Permission::ReadTrace => "ReadTrace",
+            Permission::WriteTrace => "WriteTrace",
+            Permission::DeleteTrace => "DeleteTrace",
+            Permission::ReadAudit => "ReadAudit",
+            Permission::ExportAudit => "ExportAudit",
+            Permission::ManageUsers => "ManageUsers",
+            Permission::GenerateReports => "GenerateReports",
+            // Additional permissions for global user management
+            Permission::UserManagement => "UserManagement",
+            Permission::ProjectManagement => "ProjectManagement",
+            Permission::DocumentManagement => "DocumentManagement",
+            Permission::RiskManagement => "RiskManagement",
+            Permission::AuditAccess => "AuditAccess",
+            Permission::SystemConfiguration => "SystemConfiguration",
+        }
+    }
+
     /// Parse permission from string
     fn parse_permission(&self, perm_str: &str) -> QmsResult<Permission> {
         match perm_str {
@@ -392,6 +418,13 @@ impl FileUserStorage {
             "ExportAudit" => Ok(Permission::ExportAudit),
             "ManageUsers" => Ok(Permission::ManageUsers),
             "GenerateReports" => Ok(Permission::GenerateReports),
+            // Additional permissions for global user management
+            "UserManagement" => Ok(Permission::UserManagement),
+            "ProjectManagement" => Ok(Permission::ProjectManagement),
+            "DocumentManagement" => Ok(Permission::DocumentManagement),
+            "RiskManagement" => Ok(Permission::RiskManagement),
+            "AuditAccess" => Ok(Permission::AuditAccess),
+            "SystemConfiguration" => Ok(Permission::SystemConfiguration),
             _ => Err(QmsError::validation_error(&format!("Unknown permission: {perm_str}"))),
         }
     }
@@ -423,7 +456,7 @@ impl FileUserStorage {
                     if k > 0 {
                         json.push_str(",");
                     }
-                    json.push_str(&format!("\"{}\"", format!("{:?}", permission)));
+                    json.push_str(&format!("\"{}\"", self.permission_to_string(permission)));
                 }
 
                 json.push_str("]\n        }");

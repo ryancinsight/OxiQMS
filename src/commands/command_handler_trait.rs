@@ -10,7 +10,7 @@ use crate::prelude::*;
 
 /// Command Handler trait following Interface Segregation Principle
 /// Each command type gets its own focused interface
-pub trait CommandHandler {
+pub trait CommandHandler: Send + Sync {
     /// Handle a specific command with arguments
     fn handle(&self, args: &[String]) -> QmsResult<()>;
     

@@ -7,7 +7,7 @@
 // - Dependency Inversion: Depends on project repository abstractions
 
 use crate::error::QmsResult;
-use crate::web::{HttpRequest, HttpResponse, Route, HttpMethod};
+use crate::web::{HttpRequest, HttpResponse};
 use crate::web::response::HttpStatus;
 use crate::json_utils::JsonValue;
 use crate::modules::repository::project::Repository;
@@ -77,75 +77,7 @@ impl ProjectProvider for MedicalDeviceProjectProvider {
 }
 
 impl ProjectApiHandler {
-    /// Register project API routes (GRASP Controller Pattern)
-    pub fn register_routes(router: &mut crate::web::ApiRouter) -> QmsResult<()> {
-        // GET /api/projects - List all projects
-        let list_route = Route {
-            method: HttpMethod::GET,
-            path: "/api/projects".to_string(),
-            handler_name: "list_projects".to_string(),
-            requires_auth: true,
-            allowed_roles: vec![
-                "Administrator".to_string(),
-                "Quality Engineer".to_string(),
-                "Manager".to_string(),
-                "User".to_string()
-            ],
-            rate_limit: Some(100),
-            description: "List all QMS projects".to_string(),
-        };
-        router.register_route(list_route, Box::new(Self::handle_list_projects))?;
 
-        // POST /api/projects - Create a new project
-        let create_route = Route {
-            method: HttpMethod::POST,
-            path: "/api/projects".to_string(),
-            handler_name: "create_project".to_string(),
-            requires_auth: true,
-            allowed_roles: vec![
-                "Administrator".to_string(),
-                "Quality Engineer".to_string(),
-                "Manager".to_string()
-            ],
-            rate_limit: Some(10),
-            description: "Create a new QMS project".to_string(),
-        };
-        router.register_route(create_route, Box::new(Self::handle_create_project))?;
-
-        // GET /api/projects/{id} - Get project details
-        let get_route = Route {
-            method: HttpMethod::GET,
-            path: "/api/projects/{id}".to_string(),
-            handler_name: "get_project".to_string(),
-            requires_auth: true,
-            allowed_roles: vec![
-                "Administrator".to_string(),
-                "Quality Engineer".to_string(),
-                "Manager".to_string(),
-                "User".to_string()
-            ],
-            rate_limit: Some(100),
-            description: "Get project details".to_string(),
-        };
-        router.register_route(get_route, Box::new(Self::handle_get_project))?;
-
-        // DELETE /api/projects/{id} - Delete a project
-        let delete_route = Route {
-            method: HttpMethod::DELETE,
-            path: "/api/projects/{id}".to_string(),
-            handler_name: "delete_project".to_string(),
-            requires_auth: true,
-            allowed_roles: vec![
-                "Administrator".to_string(),
-                "Manager".to_string()
-            ],
-            rate_limit: Some(5),
-            description: "Delete a project".to_string(),
-        };
-        router.register_route(delete_route, Box::new(Self::handle_delete_project))?;
-
-        Ok(())
-    }
 
     /// Handle GET /api/projects - List all projects
     pub fn handle_list_projects(_request: &HttpRequest) -> QmsResult<HttpResponse> {

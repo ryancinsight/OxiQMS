@@ -7,7 +7,7 @@
 // - Dependency Inversion: Depends on abstractions, not concretions
 
 use crate::error::QmsResult;
-use crate::web::{HttpRequest, HttpResponse, Route, HttpMethod};
+use crate::web::{HttpRequest, HttpResponse};
 use crate::web::response::HttpStatus;
 use crate::modules::audit_logger::{
     AuditSearchCriteria, AuditSearchResults, AuditOutputFormat, AuditSearchEngine,
@@ -86,42 +86,7 @@ impl AuditDataProvider for FileAuditDataProvider {
 }
 
 impl AuditApiHandler {
-    /// Register audit API routes (GRASP Controller Pattern)
-    pub fn register_routes(router: &mut crate::web::ApiRouter) -> QmsResult<()> {
-        // GET /api/audit - List audit entries with filtering
-        let list_route = Route {
-            method: HttpMethod::GET,
-            path: "/api/audit".to_string(),
-            handler_name: "list_audit_entries".to_string(),
-            requires_auth: true,
-            allowed_roles: vec![
-                "Administrator".to_string(),
-                "Quality Engineer".to_string(),
-                "Auditor".to_string()
-            ],
-            rate_limit: Some(100),
-            description: "List audit trail entries with filtering and pagination".to_string(),
-        };
-        router.register_route(list_route, Box::new(Self::handle_list_audit_entries))?;
 
-        // GET /api/audit/statistics - Get audit statistics
-        let stats_route = Route {
-            method: HttpMethod::GET,
-            path: "/api/audit/statistics".to_string(),
-            handler_name: "audit_statistics".to_string(),
-            requires_auth: true,
-            allowed_roles: vec![
-                "Administrator".to_string(),
-                "Quality Engineer".to_string(),
-                "Auditor".to_string()
-            ],
-            rate_limit: Some(50),
-            description: "Get audit trail statistics and compliance summary".to_string(),
-        };
-        router.register_route(stats_route, Box::new(Self::handle_audit_statistics))?;
-
-        Ok(())
-    }
 
     /// Handle GET /api/audit - List audit entries (GRASP Information Expert)
     pub fn handle_list_audit_entries(request: &HttpRequest) -> QmsResult<HttpResponse> {

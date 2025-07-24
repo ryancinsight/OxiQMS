@@ -345,3 +345,136 @@ mod tests {
         assert!(result.is_ok());
     }
 }
+
+// Additional DOM utility methods for medical device forms
+impl DomUtils {
+    /// Set form field value
+    pub fn set_form_value(field_id: &str, value: &str) -> QmsResult<()> {
+        // In WASM: document.getElementById(field_id).value = value
+        eprintln!("DOM Operation: SetFormValue: {field_id} = {value}");
+        Ok(())
+    }
+
+    /// Clear select options
+    pub fn clear_select_options(select_id: &str) -> QmsResult<()> {
+        // In WASM: document.getElementById(select_id).innerHTML = ""
+        eprintln!("DOM Operation: ClearSelectOptions: {select_id}");
+        Ok(())
+    }
+
+    /// Add option to select element
+    pub fn add_select_option(select_id: &str, value: &str, text: &str) -> QmsResult<()> {
+        // In WASM:
+        // let option = document.createElement("option");
+        // option.value = value;
+        // option.textContent = text;
+        // document.getElementById(select_id).appendChild(option);
+        eprintln!("DOM Operation: AddSelectOption: {select_id} -> {value}: {text}");
+        Ok(())
+    }
+
+    /// Get form field value
+    pub fn get_form_value(field_id: &str) -> QmsResult<String> {
+        // In WASM: document.getElementById(field_id).value
+        eprintln!("DOM Operation: GetFormValue: {field_id}");
+        Ok("mock_value".to_string())
+    }
+
+    /// Set checkbox state
+    pub fn set_checkbox_state(checkbox_id: &str, checked: bool) -> QmsResult<()> {
+        // In WASM: document.getElementById(checkbox_id).checked = checked
+        eprintln!("DOM Operation: SetCheckboxState: {checkbox_id} = {checked}");
+        Ok(())
+    }
+
+    /// Get checkbox state
+    pub fn get_checkbox_state(checkbox_id: &str) -> QmsResult<bool> {
+        // In WASM: document.getElementById(checkbox_id).checked
+        eprintln!("DOM Operation: GetCheckboxState: {checkbox_id}");
+        Ok(false)
+    }
+
+    /// Set radio button selection
+    pub fn set_radio_selection(radio_name: &str, value: &str) -> QmsResult<()> {
+        // In WASM: document.querySelector(`input[name="${radio_name}"][value="${value}"]`).checked = true
+        eprintln!("DOM Operation: SetRadioSelection: {radio_name} = {value}");
+        Ok(())
+    }
+
+    /// Get radio button selection
+    pub fn get_radio_selection(radio_name: &str) -> QmsResult<Option<String>> {
+        // In WASM: document.querySelector(`input[name="${radio_name}"]:checked`)?.value
+        eprintln!("DOM Operation: GetRadioSelection: {radio_name}");
+        Ok(Some("mock_selection".to_string()))
+    }
+
+    /// Validate form field in real-time
+    pub fn validate_field_realtime(field_id: &str, validation_rules: &str) -> QmsResult<bool> {
+        // In WASM: apply validation rules and update UI
+        eprintln!("DOM Operation: ValidateFieldRealtime: {field_id} with rules: {validation_rules}");
+        Ok(true)
+    }
+
+    /// Show field validation error
+    pub fn show_field_error(field_id: &str, error_message: &str) -> QmsResult<()> {
+        // In WASM: show error message near the field
+        eprintln!("DOM Operation: ShowFieldError: {field_id} -> {error_message}");
+        Ok(())
+    }
+
+    /// Hide field validation error
+    pub fn hide_field_error(field_id: &str) -> QmsResult<()> {
+        // In WASM: hide error message for the field
+        eprintln!("DOM Operation: HideFieldError: {field_id}");
+        Ok(())
+    }
+
+    /// Set progress bar value
+    pub fn set_progress_value(progress_id: &str, value: f32) -> QmsResult<()> {
+        // In WASM: document.getElementById(progress_id).value = value
+        eprintln!("DOM Operation: SetProgressValue: {progress_id} = {value}%");
+        Ok(())
+    }
+
+    /// Update step indicator
+    pub fn update_step_indicator(step_id: &str, status: &str) -> QmsResult<()> {
+        // In WASM: update step visual state (active, completed, pending)
+        eprintln!("DOM Operation: UpdateStepIndicator: {step_id} -> {status}");
+        Ok(())
+    }
+
+    /// Show modal dialog
+    pub fn show_modal(modal_id: &str) -> QmsResult<()> {
+        // In WASM: show modal dialog
+        eprintln!("DOM Operation: ShowModal: {modal_id}");
+        Ok(())
+    }
+
+    /// Hide modal dialog
+    pub fn hide_modal(modal_id: &str) -> QmsResult<()> {
+        // In WASM: hide modal dialog
+        eprintln!("DOM Operation: HideModal: {modal_id}");
+        Ok(())
+    }
+
+    /// Update compliance indicator
+    pub fn update_compliance_indicator(indicator_id: &str, status: &str, percentage: f32) -> QmsResult<()> {
+        // In WASM: update compliance status indicator
+        eprintln!("DOM Operation: UpdateComplianceIndicator: {indicator_id} -> {status} ({percentage}%)");
+        Ok(())
+    }
+
+    /// Show tooltip
+    pub fn show_tooltip(element_id: &str, tooltip_text: &str) -> QmsResult<()> {
+        // In WASM: show tooltip for element
+        eprintln!("DOM Operation: ShowTooltip: {element_id} -> {tooltip_text}");
+        Ok(())
+    }
+
+    /// Hide tooltip
+    pub fn hide_tooltip(element_id: &str) -> QmsResult<()> {
+        // In WASM: hide tooltip for element
+        eprintln!("DOM Operation: HideTooltip: {element_id}");
+        Ok(())
+    }
+}

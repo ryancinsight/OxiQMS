@@ -3,7 +3,7 @@
 
 use crate::prelude::*;
 use crate::models::User;
-use crate::modules::user_manager::interfaces::{SessionManager, UserSession};
+use crate::modules::user_manager::interfaces::{SessionManager, UserSession, SessionType};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -62,6 +62,43 @@ impl DefaultSessionStrategy {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs()
+    }
+
+    /// Extract permissions from roles
+    fn extract_permissions(&self, roles: &[Role]) -> Vec<String> {
+        let mut permissions = Vec::new();
+
+        for role in roles {
+            for permission in &role.permissions {
+                let perm_str = match permission {
+                    Permission::ReadDocuments => "read_documents",
+                    Permission::WriteDocuments => "write_documents",
+                    Permission::DeleteDocuments => "delete_documents",
+                    Permission::ReadRisks => "read_risks",
+                    Permission::WriteRisks => "write_risks",
+                    Permission::DeleteRisks => "delete_risks",
+                    Permission::ReadTrace => "read_trace",
+                    Permission::WriteTrace => "write_trace",
+                    Permission::DeleteTrace => "delete_trace",
+                    Permission::ReadAudit => "read_audit",
+                    Permission::ExportAudit => "export_audit",
+                    Permission::ManageUsers => "manage_users",
+                    Permission::GenerateReports => "generate_reports",
+                    Permission::UserManagement => "user_management",
+                    Permission::ProjectManagement => "project_management",
+                    Permission::DocumentManagement => "document_management",
+                    Permission::RiskManagement => "risk_management",
+                    Permission::AuditAccess => "audit_access",
+                    Permission::SystemConfiguration => "system_configuration",
+                };
+
+                if !permissions.contains(&perm_str.to_string()) {
+                    permissions.push(perm_str.to_string());
+                }
+            }
+        }
+
+        permissions
     }
     
     /// Check if automatic cleanup should run
@@ -134,7 +171,7 @@ impl Default for DefaultSessionStrategy {
 }
 
 impl SessionManager for DefaultSessionStrategy {
-    fn create_session(&self, user: &User) -> QmsResult<UserSession> {
+    fn create_session(&self, user: &User, session_type: SessionType, ip_address: Option<String>, user_agent: Option<String>) -> QmsResult<UserSession> {
         self.auto_cleanup();
 
         let now = Self::current_timestamp();
@@ -143,11 +180,16 @@ impl SessionManager for DefaultSessionStrategy {
             user_id: user.username.clone(),
             username: user.username.clone(),
             roles: user.roles.clone(),
+            permissions: self.extract_permissions(&user.roles),
             login_time: now,
             last_activity: now,
-            ip_address: None,
             expires_at: now + self.config.session_timeout_hours * 3600,
+            ip_address,
+            user_agent,
+            csrf_token: UserSession::generate_csrf_token(),
             is_active: true,
+            session_type,
+            data: std::collections::HashMap::new(),
         };
 
         // Enforce session limit before storing the new session
@@ -262,8 +304,8 @@ impl Default for InMemorySessionStrategy {
 }
 
 impl SessionManager for InMemorySessionStrategy {
-    fn create_session(&self, user: &User) -> QmsResult<UserSession> {
-        self.base_strategy.create_session(user)
+    fn create_session(&self, user: &User, session_type: SessionType, ip_address: Option<String>, user_agent: Option<String>) -> QmsResult<UserSession> {
+        self.base_strategy.create_session(user, session_type, ip_address, user_agent)
     }
     
     fn validate_session(&self, session_id: &str) -> QmsResult<UserSession> {
@@ -310,7 +352,7 @@ mod tests {
         let session_manager = DefaultSessionStrategy::new();
         let user = create_test_user();
         
-        let session = session_manager.create_session(&user).unwrap();
+        let session = session_manager.create_session(&user, SessionType::CLI, None, None).unwrap();
         
         assert_eq!(session.username, "testuser");
         assert!(session.is_active);
@@ -323,7 +365,7 @@ mod tests {
         let session_manager = DefaultSessionStrategy::new();
         let user = create_test_user();
         
-        let session = session_manager.create_session(&user).unwrap();
+        let session = session_manager.create_session(&user, SessionType::CLI, None, None).unwrap();
         let session_id = session.session_id.clone();
         
         // Valid session should be retrievable
@@ -339,7 +381,7 @@ mod tests {
         let session_manager = DefaultSessionStrategy::new();
         let user = create_test_user();
         
-        let session = session_manager.create_session(&user).unwrap();
+        let session = session_manager.create_session(&user, SessionType::CLI, None, None).unwrap();
         let session_id = session.session_id.clone();
         
         // Terminate session
@@ -354,7 +396,7 @@ mod tests {
         let session_manager = DefaultSessionStrategy::new();
         let user = create_test_user();
 
-        let session = session_manager.create_session(&user).unwrap();
+        let session = session_manager.create_session(&user, SessionType::CLI, None, None).unwrap();
         let session_id = session.session_id.clone();
         let initial_activity = session.last_activity;
 
@@ -392,10 +434,10 @@ mod tests {
         };
 
         // Create maximum number of sessions with sufficient delays to ensure different timestamps
-        let session1 = session_manager.create_session(&user).unwrap();
+        let session1 = session_manager.create_session(&user, SessionType::CLI, None, None).unwrap();
         std::thread::sleep(std::time::Duration::from_secs(1)); // Longer delay to ensure different timestamps
 
-        let session2 = session_manager.create_session(&user).unwrap();
+        let session2 = session_manager.create_session(&user, SessionType::CLI, None, None).unwrap();
         std::thread::sleep(std::time::Duration::from_secs(1)); // Longer delay to ensure different timestamps
 
         // Both should be valid
@@ -412,7 +454,7 @@ mod tests {
         assert_eq!(user_sessions.len(), 2, "Should have exactly 2 active sessions before creating third");
 
         // Creating a third session should remove the oldest (session1)
-        let session3 = session_manager.create_session(&user).unwrap();
+        let session3 = session_manager.create_session(&user, SessionType::CLI, None, None).unwrap();
 
         // Verify session3 was created
         assert!(session_manager.validate_session(&session3.session_id).is_ok(),
@@ -443,7 +485,7 @@ mod tests {
         let session_manager = DefaultSessionStrategy::with_config(config);
         let user = create_test_user();
 
-        let _session = session_manager.create_session(&user).unwrap();
+        let _session = session_manager.create_session(&user, SessionType::CLI, None, None).unwrap();
 
         // Wait a moment to ensure expiration (since expires_at = now, we need time to pass)
         std::thread::sleep(std::time::Duration::from_secs(1));

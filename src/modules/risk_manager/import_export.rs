@@ -548,7 +548,7 @@ impl RiskImporter {
             standard_references: Vec::new(),
             created_at: crate::utils::format_timestamp(crate::utils::current_timestamp()),
             updated_at: crate::utils::format_timestamp(crate::utils::current_timestamp()),
-            created_by: "system".to_string(), // TODO: Get actual user
+            created_by: crate::utils::user_context::get_current_user_id(), // Get actual user
             approved_by: None,
             approval_date: None,
             post_market_data: Vec::new(),

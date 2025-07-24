@@ -1375,10 +1375,10 @@ fn handle_doc_checkout(args: &[String]) -> Result<(), String> {
 
     let service = DocumentService::new(project_path);
 
-    // TODO: Get current user from authentication system
-    let current_user = "current_user"; // Placeholder for actual user system
+    // Get current user from authentication system
+    let current_user = crate::utils::user_context::get_current_username();
 
-    match service.checkout_document(document_id, current_user, reason.clone()) {
+    match service.checkout_document(document_id, &current_user, reason.clone()) {
         Ok(lock) => {
             println!("✅ Document checked out successfully!");
             println!("Document ID: {}", lock.document_id);
@@ -1436,12 +1436,12 @@ fn handle_doc_checkin(args: &[String]) -> Result<(), String> {
 
     let service = DocumentService::new(project_path);
 
-    // TODO: Get current user from authentication system
-    let current_user = "current_user"; // Placeholder for actual user system
+    // Get current user from authentication system
+    let current_user = crate::utils::user_context::get_current_username();
 
     match service.checkin_document(
-        document_id, 
-        current_user, 
+        document_id,
+        &current_user,
         file_path.as_deref(),
         message.as_deref()
     ) {
@@ -1560,8 +1560,8 @@ fn handle_doc_unlock(args: &[String]) -> Result<(), String> {
 
     let service = DocumentService::new(project_path);
 
-    // TODO: Get current user from authentication system
-    let current_user = "admin_user"; // Placeholder for actual user system
+    // Get current user from authentication system
+    let current_user = crate::utils::user_context::get_current_username();
 
     // Confirm force unlock
     println!("WARNING: This will forcefully unlock document {document_id}");
@@ -1579,7 +1579,7 @@ fn handle_doc_unlock(args: &[String]) -> Result<(), String> {
         return Ok(());
     }
 
-    match service.force_release_lock(document_id, current_user, &reason) {
+    match service.force_release_lock(document_id, &current_user, &reason) {
         Ok(()) => {
             println!("✅ Document unlocked successfully!");
             println!("Document ID: {document_id}");
@@ -2075,7 +2075,7 @@ fn handle_doc_archive(args: &[String]) -> Result<(), String> {
     }
 
     let document_id = &args[0];
-    let current_user = "CLI User"; // Placeholder for Phase 4 user management
+    let current_user = crate::utils::user_context::get_current_username();
     
     // Parse optional reason
     let reason = if let Some(idx) = args.iter().position(|x| x == "--reason") {
@@ -2091,7 +2091,7 @@ fn handle_doc_archive(args: &[String]) -> Result<(), String> {
     let project_path = std::env::current_dir().map_err(|e| format!("Failed to get current directory: {e}"))?;
     let service = DocumentService::new(project_path);
 
-    match service.archive_document(document_id, current_user, reason) {
+    match service.archive_document(document_id, &current_user, reason) {
         Ok(document) => {
             println!("✅ Document archived successfully!");
             println!("Document ID: {}", document.id);
@@ -2119,7 +2119,7 @@ fn handle_doc_restore(args: &[String]) -> Result<(), String> {
     }
 
     let document_id = &args[0];
-    let current_user = "CLI User"; // Placeholder for Phase 4 user management
+    let current_user = crate::utils::user_context::get_current_username();
     
     // Parse optional reason
     let reason = if let Some(idx) = args.iter().position(|x| x == "--reason") {
@@ -2135,7 +2135,7 @@ fn handle_doc_restore(args: &[String]) -> Result<(), String> {
     let project_path = std::env::current_dir().map_err(|e| format!("Failed to get current directory: {e}"))?;
     let service = DocumentService::new(project_path);
 
-    match service.restore_document(document_id, current_user, reason) {
+    match service.restore_document(document_id, &current_user, reason) {
         Ok(document) => {
             println!("✅ Document restored successfully!");
             println!("Document ID: {}", document.id);

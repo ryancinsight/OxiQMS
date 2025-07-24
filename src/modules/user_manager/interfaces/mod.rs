@@ -56,23 +56,50 @@ pub trait UserStorage {
     fn update_user(&self, user: &User) -> QmsResult<()>;
 }
 
+/// Session storage interface - handles session persistence
+pub trait SessionStorage {
+    /// Save session to storage
+    fn save_session(&self, session: &UserSession) -> QmsResult<()>;
+
+    /// Load session from storage
+    fn load_session(&self, session_id: &str) -> QmsResult<UserSession>;
+
+    /// Check if session exists
+    fn session_exists(&self, session_id: &str) -> QmsResult<bool>;
+
+    /// Delete session from storage
+    fn delete_session(&self, session_id: &str) -> QmsResult<()>;
+
+    /// List all sessions
+    fn list_sessions(&self) -> QmsResult<Vec<UserSession>>;
+
+    /// List sessions for specific user
+    fn list_user_sessions(&self, username: &str) -> QmsResult<Vec<UserSession>>;
+
+    /// Delete all sessions for user
+    fn delete_user_sessions(&self, username: &str) -> QmsResult<usize>;
+
+    /// Cleanup expired sessions
+    fn cleanup_expired_sessions(&self) -> QmsResult<usize>;
+}
+
 /// Session management interface - handles user sessions
 pub trait SessionManager {
     /// Create new session for user
-    fn create_session(&self, user: &User) -> QmsResult<UserSession>;
-    
+    fn create_session(&self, user: &User, session_type: SessionType, ip_address: Option<String>, user_agent: Option<String>) -> QmsResult<UserSession>;
+
     /// Validate existing session
     fn validate_session(&self, session_id: &str) -> QmsResult<UserSession>;
-    
+
     /// Update session activity
     fn update_session_activity(&self, session_id: &str) -> QmsResult<()>;
-    
+
     /// Terminate session
     fn terminate_session(&self, session_id: &str) -> QmsResult<()>;
-    
+
     /// List active sessions
     fn list_active_sessions(&self) -> QmsResult<Vec<UserSession>>;
-    
+
     /// Cleanup expired sessions
     fn cleanup_expired_sessions(&self) -> QmsResult<usize>;
 }
@@ -104,18 +131,30 @@ pub struct AuthenticationResult {
     pub message: String,
 }
 
-/// User session (consolidated from multiple definitions)
+/// Session type enumeration
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SessionType {
+    CLI,
+    Web,
+}
+
+/// Unified user session (supports both CLI and web)
 #[derive(Debug, Clone)]
 pub struct UserSession {
     pub session_id: String,
     pub user_id: String,
     pub username: String,
     pub roles: Vec<Role>,
+    pub permissions: Vec<String>,
     pub login_time: u64,
     pub last_activity: u64,
-    pub ip_address: Option<String>,
     pub expires_at: u64,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+    pub csrf_token: String,
     pub is_active: bool,
+    pub session_type: SessionType,
+    pub data: HashMap<String, String>, // Additional session data
 }
 
 impl UserSession {
@@ -125,16 +164,38 @@ impl UserSession {
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
         now > self.expires_at
     }
-    
+
     /// Generate new session ID
     pub fn generate_session_id() -> String {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
         use std::time::{SystemTime, UNIX_EPOCH};
-        
+
         let mut hasher = DefaultHasher::new();
         SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos().hash(&mut hasher);
-        format!("session_{:x}", hasher.finish())
+        format!("qms_{:x}", hasher.finish())
+    }
+
+    /// Generate CSRF token
+    pub fn generate_csrf_token() -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let mut hasher = DefaultHasher::new();
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos().hash(&mut hasher);
+        format!("csrf_{:x}", hasher.finish())
+    }
+
+    /// Check if session is authenticated
+    pub fn is_authenticated(&self) -> bool {
+        self.is_active && !self.is_expired()
+    }
+
+    /// Update last activity timestamp
+    pub fn update_activity(&mut self) {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        self.last_activity = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
     }
 }
 

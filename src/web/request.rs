@@ -67,6 +67,24 @@ impl HttpRequest {
         }
     }
 
+    /// Create new HTTP request with all parameters (for testing)
+    pub fn new_with_params(method: &str, uri: &str, headers: HashMap<String, String>, body: Option<String>) -> Self {
+        let body_bytes = body.map(|b| b.into_bytes()).unwrap_or_default();
+
+        Self {
+            method: method.to_string(),
+            uri: uri.to_string(),
+            version: "HTTP/1.1".to_string(),
+            headers,
+            body: body_bytes,
+            query_params: HashMap::new(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+        }
+    }
+
     pub fn parse(request_data: &str) -> Result<Self, crate::error::QmsError> {
         let lines: Vec<&str> = request_data.lines().collect();
         if lines.is_empty() {
@@ -153,6 +171,15 @@ impl HttpRequest {
 
     pub fn get_body_as_string(&self) -> Result<String, std::string::FromUtf8Error> {
         String::from_utf8(self.body.clone())
+    }
+
+    /// Get the request body as an optional string
+    pub fn get_body(&self) -> Option<String> {
+        if self.body.is_empty() {
+            None
+        } else {
+            String::from_utf8(self.body.clone()).ok()
+        }
     }
 
     pub fn get_content_length(&self) -> usize {

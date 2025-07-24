@@ -798,48 +798,60 @@ impl RequirementManager {
     
     /// Update an existing requirement
     pub fn update_requirement(&mut self, req_id: &str, updates: RequirementUpdate) -> Result<(), QmsError> {
-        let requirement = self.requirements.values_mut()
-            .find(|r| r.req_id == req_id)
-            .ok_or_else(|| QmsError::validation_error(&format!("Requirement {req_id} not found")))?;
-        
-        // Update fields if provided
-        if let Some(title) = updates.title {
-            requirement.title = title;
-        }
-        if let Some(description) = updates.description {
-            requirement.description = description;
-        }
-        if let Some(category) = updates.category {
-            requirement.category = category;
-        }
-        if let Some(priority) = updates.priority {
-            requirement.priority = priority;
-        }
-        if let Some(status) = updates.status {
-            requirement.status = status;
-        }
-        if let Some(source) = updates.source {
-            requirement.source = source;
-        }
-        if let Some(rationale) = updates.rationale {
-            requirement.rationale = rationale;
-        }
-        if let Some(acceptance_criteria) = updates.acceptance_criteria {
-            requirement.acceptance_criteria = acceptance_criteria;
-        }
-        if let Some(verification_method) = updates.verification_method {
-            requirement.verification_method = verification_method;
-        }
-        
-        // Update timestamp
-        requirement.updated_at = current_timestamp().to_string();
-        
+        // Collect audit info before mutable borrow
+        let (req_id_copy, requirement_id_copy) = {
+            let requirement = self.requirements.values_mut()
+                .find(|r| r.req_id == req_id)
+                .ok_or_else(|| QmsError::validation_error(&format!("Requirement {req_id} not found")))?;
+
+            // Update fields if provided
+            if let Some(title) = updates.title {
+                requirement.title = title;
+            }
+            if let Some(description) = updates.description {
+                requirement.description = description;
+            }
+            if let Some(category) = updates.category {
+                requirement.category = category;
+            }
+            if let Some(priority) = updates.priority {
+                requirement.priority = priority;
+            }
+            if let Some(status) = updates.status {
+                requirement.status = status;
+            }
+            if let Some(source) = updates.source {
+                requirement.source = source;
+            }
+            if let Some(rationale) = updates.rationale {
+                requirement.rationale = rationale;
+            }
+            if let Some(acceptance_criteria) = updates.acceptance_criteria {
+                requirement.acceptance_criteria = acceptance_criteria;
+            }
+            if let Some(verification_method) = updates.verification_method {
+                requirement.verification_method = verification_method;
+            }
+
+            // Update timestamp
+            requirement.updated_at = current_timestamp().to_string();
+
+            // Return copies for audit logging
+            (requirement.req_id.clone(), requirement.id.clone())
+        };
+
         // Save changes
         self.save()?;
-        
-        // TODO: Add audit logging when audit system is available
-        // audit_system.log_update("Requirement", &requirement.id, &requirement.req_id, "qms_user");
-        
+
+        // Add audit logging for requirement update
+        if let Err(e) = crate::modules::audit_logger::audit_log_action(
+            "REQUIREMENT_UPDATED",
+            "Requirement",
+            &format!("Requirement {} ({}) updated", req_id_copy, requirement_id_copy)
+        ) {
+            eprintln!("Warning: Failed to log requirement update: {}", e);
+        }
+
         Ok(())
     }
     
@@ -858,8 +870,14 @@ impl RequirementManager {
             // Save changes
             self.save()?;
             
-            // TODO: Add audit logging when audit system is available
-            // audit_system.log_delete("Requirement", &requirement_id, req_id, "qms_user");
+            // Add audit logging for requirement deletion
+            if let Err(e) = crate::modules::audit_logger::audit_log_action(
+                "REQUIREMENT_DELETED",
+                "Requirement",
+                &format!("Requirement {} deleted", requirement_id)
+            ) {
+                eprintln!("Warning: Failed to log requirement deletion: {}", e);
+            }
         }
         
         Ok(())

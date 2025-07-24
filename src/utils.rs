@@ -284,3 +284,254 @@ mod tests {
         assert!(formatted.contains("today") || formatted.contains("timestamp"));
     }
 }
+
+/// User Context Management System
+/// Provides centralized user context for CLI operations and modules
+/// Replaces hardcoded user placeholders with proper authentication integration
+pub mod user_context {
+    use crate::prelude::*;
+    use crate::modules::user_manager::{FileAuthManager};
+    use crate::modules::user_manager::auth::UserSession;
+    use std::path::PathBuf;
+    use std::sync::{Mutex, Arc};
+    use std::collections::HashMap;
+
+    /// Global user context manager for CLI operations
+    static USER_CONTEXT_MANAGER: std::sync::OnceLock<Arc<Mutex<UserContextManager>>> = std::sync::OnceLock::new();
+
+    /// User context information for operations
+    #[derive(Debug, Clone)]
+    pub struct UserContext {
+        pub user_id: String,
+        pub username: String,
+        pub session_id: Option<String>,
+        pub roles: Vec<String>,
+        pub permissions: Vec<String>,
+        pub project_path: PathBuf,
+    }
+
+    /// User context manager for CLI and module operations
+    pub struct UserContextManager {
+        current_context: Option<UserContext>,
+        session_cache: HashMap<String, UserSession>,
+        project_path: PathBuf,
+    }
+
+    impl UserContextManager {
+        /// Create new user context manager
+        pub fn new(project_path: PathBuf) -> Self {
+            Self {
+                current_context: None,
+                session_cache: HashMap::new(),
+                project_path,
+            }
+        }
+
+        /// Initialize global user context manager
+        pub fn initialize(project_path: PathBuf) -> QmsResult<()> {
+            let manager = Arc::new(Mutex::new(Self::new(project_path)));
+            USER_CONTEXT_MANAGER.set(manager)
+                .map_err(|_| QmsError::domain_error("User context manager already initialized"))?;
+            Ok(())
+        }
+
+        /// Get global user context manager
+        pub fn global() -> QmsResult<Arc<Mutex<UserContextManager>>> {
+            USER_CONTEXT_MANAGER.get()
+                .ok_or_else(|| QmsError::domain_error("User context manager not initialized"))
+                .map(Arc::clone)
+        }
+
+        /// Set current user context from authentication
+        pub fn set_user_context(&mut self, user_id: String, session: Option<UserSession>) -> QmsResult<()> {
+            let username = if let Some(ref session) = session {
+                session.username.clone()
+            } else {
+                user_id.clone()
+            };
+
+            let roles = if let Some(ref session) = session {
+                session.roles.iter().map(|r| r.name.clone()).collect()
+            } else {
+                vec!["User".to_string()]
+            };
+
+            let permissions = if let Some(ref session) = session {
+                session.roles.iter()
+                    .flat_map(|role| &role.permissions)
+                    .map(|perm| format!("{:?}", perm))
+                    .collect()
+            } else {
+                vec![]
+            };
+
+            let context = UserContext {
+                user_id: user_id.clone(),
+                username,
+                session_id: session.as_ref().map(|s| s.session_id.clone()),
+                roles,
+                permissions,
+                project_path: self.project_path.clone(),
+            };
+
+            if let Some(session) = session {
+                self.session_cache.insert(session.session_id.clone(), session);
+            }
+
+            self.current_context = Some(context);
+            Ok(())
+        }
+
+        /// Get current user context
+        pub fn get_current_context(&self) -> Option<&UserContext> {
+            self.current_context.as_ref()
+        }
+
+        /// Clear current user context (logout)
+        pub fn clear_context(&mut self) {
+            if let Some(context) = &self.current_context {
+                if let Some(session_id) = &context.session_id {
+                    self.session_cache.remove(session_id);
+                }
+            }
+            self.current_context = None;
+        }
+
+        /// Get current user ID or default
+        pub fn get_current_user_id(&self) -> String {
+            self.current_context
+                .as_ref()
+                .map(|ctx| ctx.user_id.clone())
+                .unwrap_or_else(|| "system".to_string())
+        }
+
+        /// Get current username or default
+        pub fn get_current_username(&self) -> String {
+            self.current_context
+                .as_ref()
+                .map(|ctx| ctx.username.clone())
+                .unwrap_or_else(|| "System User".to_string())
+        }
+
+        /// Check if user has permission
+        pub fn has_permission(&self, permission: &str) -> bool {
+            self.current_context
+                .as_ref()
+                .map(|ctx| ctx.permissions.contains(&permission.to_string()))
+                .unwrap_or(false)
+        }
+    }
+
+    /// Convenience functions for getting current user context
+
+    /// Get current user ID for operations
+    pub fn get_current_user_id() -> String {
+        if let Ok(manager) = UserContextManager::global() {
+            if let Ok(manager) = manager.lock() {
+                return manager.get_current_user_id();
+            }
+        }
+        "system".to_string()
+    }
+
+    /// Get current username for operations
+    pub fn get_current_username() -> String {
+        if let Ok(manager) = UserContextManager::global() {
+            if let Ok(manager) = manager.lock() {
+                return manager.get_current_username();
+            }
+        }
+        "System User".to_string()
+    }
+
+    /// Get current user context
+    pub fn get_current_context() -> Option<UserContext> {
+        if let Ok(manager) = UserContextManager::global() {
+            if let Ok(manager) = manager.lock() {
+                return manager.get_current_context().cloned();
+            }
+        }
+        None
+    }
+
+    /// Initialize user context from CLI login
+    pub fn initialize_cli_context(project_path: PathBuf, username: Option<String>) -> QmsResult<()> {
+        UserContextManager::initialize(project_path.clone())?;
+
+        if let Some(username) = username {
+            // Try to authenticate user
+            let auth_manager = FileAuthManager::from_project_path(&project_path)?;
+
+            // For CLI, we'll create a basic context without full authentication
+            // In a production system, this would require password authentication
+            let manager = UserContextManager::global()?;
+            let mut manager = manager.lock().unwrap();
+            manager.set_user_context(username, None)?;
+        }
+
+        Ok(())
+    }
+
+    /// Check if user has permission
+    pub fn has_permission(permission: &str) -> bool {
+        if let Ok(manager) = UserContextManager::global() {
+            if let Ok(manager) = manager.lock() {
+                return manager.has_permission(permission);
+            }
+        }
+        false
+    }
+
+    /// Get current project ID from project path
+    pub fn get_current_project_id() -> String {
+        if let Ok(project_path) = crate::utils::get_current_project_path() {
+            // Extract project ID from path (last directory component)
+            if let Some(project_id) = project_path.file_name() {
+                if let Some(id_str) = project_id.to_str() {
+                    return id_str.to_string();
+                }
+            }
+
+            // Fallback: try to read from project.json
+            let project_file = project_path.join("project.json");
+            if let Ok(content) = std::fs::read_to_string(project_file) {
+                if let Ok(json) = crate::json_utils::JsonValue::parse(&content) {
+                    if let crate::json_utils::JsonValue::Object(obj) = json {
+                        if let Some(data) = obj.get("data") {
+                            if let crate::json_utils::JsonValue::Object(data_obj) = data {
+                                if let Some(crate::json_utils::JsonValue::String(id)) = data_obj.get("id") {
+                                    return id.clone();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Ultimate fallback
+        "unknown_project".to_string()
+    }
+
+    /// Get current project name from project metadata
+    pub fn get_current_project_name() -> String {
+        if let Ok(project_path) = crate::utils::get_current_project_path() {
+            let project_file = project_path.join("project.json");
+            if let Ok(content) = std::fs::read_to_string(project_file) {
+                if let Ok(json) = crate::json_utils::JsonValue::parse(&content) {
+                    if let crate::json_utils::JsonValue::Object(obj) = json {
+                        if let Some(data) = obj.get("data") {
+                            if let crate::json_utils::JsonValue::Object(data_obj) = data {
+                                if let Some(crate::json_utils::JsonValue::String(name)) = data_obj.get("name") {
+                                    return name.clone();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        "Unknown Project".to_string()
+    }
+}

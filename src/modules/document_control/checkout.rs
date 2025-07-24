@@ -132,7 +132,7 @@ impl CheckoutManager {
         doc_id: &str, 
         user_id: &str, 
         new_content_path: Option<&str>,
-        _message: Option<&str>
+        message: Option<&str>
     ) -> QmsResult<Document> {
         // Validate lock ownership
         self.validate_lock_ownership(doc_id, user_id)?;
@@ -150,22 +150,27 @@ impl CheckoutManager {
         // Update timestamp
         doc.updated_at = current_timestamp().to_string();
 
-        // Create version snapshot before updating
-        let _doc_service = DocumentService::new(PathBuf::from(self.project_path.clone()));
-        
-        // For now, just save the version - we'll integrate proper version control later
-        // doc_service.create_version_snapshot(&doc)?;
-
-        // Increment version if content changed (simplified for now)
+        // Integrate with proper version control system
         if new_content_path.is_some() {
-            // For now, just increment patch version manually
-            // TODO: Integrate with proper version control system
-            let parts: Vec<&str> = doc.version.split('.').collect();
-            if parts.len() == 3 {
-                if let Ok(patch) = parts[2].parse::<u32>() {
-                    doc.version = format!("{}.{}.{}", parts[0], parts[1], patch + 1);
-                }
-            }
+            use crate::modules::document_control::version::{DocumentVersionControl, VersionChangeType};
+
+            // Determine change type based on content change
+            let change_type = VersionChangeType::Patch; // Content changes are patch increments
+
+            // Increment version using proper version control
+            doc.version = DocumentVersionControl::increment_version(&doc.version, change_type.clone())?;
+
+            // Create version snapshot with proper version control system
+            let change_description = message.unwrap_or("Document content updated via checkin");
+            let created_by = crate::utils::user_context::get_current_username();
+
+            DocumentVersionControl::create_version_snapshot(
+                &PathBuf::from(&self.project_path),
+                &doc,
+                change_type,
+                change_description,
+                &created_by,
+            )?;
         }
 
         // Release the document lock file first

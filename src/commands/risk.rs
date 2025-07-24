@@ -4706,7 +4706,7 @@ fn handle_risk_categorize(args: &[String]) -> Result<(), String> {
         category.clone(),
         subcategory.as_deref(),
         classifications,
-        "cli_user", // TODO: Get actual user from session
+        &crate::utils::user_context::get_current_user_id(), // Get actual user from context
         &rationale,
     )?;
     

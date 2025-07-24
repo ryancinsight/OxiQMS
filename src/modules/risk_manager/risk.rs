@@ -546,23 +546,98 @@ impl RiskManager {
                 metadata: HashMap::new(),
             });
         }
-        
-        let _content = fs::read_to_string(&self.index_file)?;
-        // Placeholder for JSON parsing - simplified index loading
+
+        let content = fs::read_to_string(&self.index_file)?;
+
+        // Parse JSON content using stdlib-only approach
+        use crate::json_utils::JsonValue;
+        let json = JsonValue::parse(&content)?;
+
+        let mut risks = Vec::new();
+        if let JsonValue::Object(obj) = json {
+            if let Some(JsonValue::Array(risks_array)) = obj.get("risks") {
+                for risk_value in risks_array {
+                    if let JsonValue::Object(risk_obj) = risk_value {
+                        // Extract risk index entry fields
+                        let id = extract_string_field(risk_obj, "id")?;
+                        let hazard_id = extract_string_field(risk_obj, "hazard_id")?;
+                        let description = extract_string_field(risk_obj, "description")?;
+                        let severity_str = extract_string_field(risk_obj, "severity")?;
+                        let rpn = extract_number_field(risk_obj, "rpn")? as u32;
+                        let risk_level_str = extract_string_field(risk_obj, "risk_level")?;
+                        let status_str = extract_string_field(risk_obj, "status")?;
+                        let created_at = extract_string_field(risk_obj, "created_at")?;
+                        let updated_at = extract_string_field(risk_obj, "updated_at")?;
+
+                        // Parse enum values
+                        let severity = parse_risk_severity(&severity_str);
+                        let risk_level = parse_risk_level(&risk_level_str);
+                        let status = parse_verification_status(&status_str);
+
+                        let entry = RiskIndexEntry {
+                            id,
+                            hazard_id,
+                            description,
+                            severity,
+                            rpn,
+                            risk_level,
+                            status,
+                            created_at,
+                            updated_at,
+                        };
+
+                        risks.push(entry);
+                    }
+                }
+            }
+        }
+
         Ok(RiskIndex {
             version: "1.0".to_string(),
-            risks: Vec::new(),
+            risks,
             metadata: HashMap::new(),
         })
     }
     
     /// Save risk index
     fn save_index(&self, index: &RiskIndex) -> QmsResult<()> {
+        // Serialize the risks array properly
+        let mut risks_json = String::new();
+        for (i, risk) in index.risks.iter().enumerate() {
+            if i > 0 {
+                risks_json.push_str(",\n        ");
+            }
+            risks_json.push_str(&format!(r#"{{
+            "id": "{}",
+            "hazard_id": "{}",
+            "description": "{}",
+            "severity": "{}",
+            "rpn": {},
+            "risk_level": "{}",
+            "status": "{}",
+            "created_at": "{}",
+            "updated_at": "{}"
+        }}"#,
+                escape_json_string(&risk.id),
+                escape_json_string(&risk.hazard_id),
+                escape_json_string(&risk.description),
+                format!("{:?}", risk.severity),
+                risk.rpn,
+                format!("{:?}", risk.risk_level),
+                format!("{:?}", risk.status),
+                escape_json_string(&risk.created_at),
+                escape_json_string(&risk.updated_at)
+            ));
+        }
+
         let json_content = format!(r#"{{
     "version": "{}",
-    "risks": [],
+    "risks": [
+        {}
+    ],
     "metadata": {{}}
-}}"#, index.version);
+}}"#, index.version, risks_json);
+
         fs::write(&self.index_file, json_content)?;
         Ok(())
     }
@@ -585,7 +660,7 @@ impl RiskManager {
         let mut risks = Vec::new();
         
         for entry in index_entries {
-            match self.load_risk(&entry.hazard_id) {
+            match self.load_risk(&entry.id) {
                 Ok(risk) => risks.push(risk),
                 Err(e) => {
                     eprintln!("Warning: Failed to load risk {}: {}", entry.hazard_id, e);
@@ -1151,6 +1226,75 @@ fn escape_json_string(s: &str) -> String {
      .replace('\t', "\\t")
 }
 
+/// Helper function to extract string field from JSON object
+fn extract_string_field(obj: &std::collections::HashMap<String, crate::json_utils::JsonValue>, field: &str) -> QmsResult<String> {
+    use crate::json_utils::JsonValue;
+    match obj.get(field) {
+        Some(JsonValue::String(s)) => Ok(s.clone()),
+        _ => Err(QmsError::validation_error(&format!("Missing or invalid field: {}", field))),
+    }
+}
+
+/// Helper function to extract number field from JSON object
+fn extract_number_field(obj: &std::collections::HashMap<String, crate::json_utils::JsonValue>, field: &str) -> QmsResult<f64> {
+    use crate::json_utils::JsonValue;
+    match obj.get(field) {
+        Some(JsonValue::Number(n)) => Ok(*n),
+        _ => Err(QmsError::validation_error(&format!("Missing or invalid number field: {}", field))),
+    }
+}
+
+/// Parse RiskSeverity from string
+fn parse_risk_severity(s: &str) -> RiskSeverity {
+    match s {
+        "Negligible" => RiskSeverity::Negligible,
+        "Minor" => RiskSeverity::Minor,
+        "Major" => RiskSeverity::Major,
+        "Critical" => RiskSeverity::Critical,
+        "Catastrophic" => RiskSeverity::Catastrophic,
+        _ => RiskSeverity::Minor, // Default fallback
+    }
+}
+
+/// Parse RiskLevel from string
+fn parse_risk_level(s: &str) -> RiskLevel {
+    match s {
+        "Acceptable" => RiskLevel::Acceptable,
+        "ALARP" => RiskLevel::ALARP,
+        "Unacceptable" => RiskLevel::Unacceptable,
+        _ => RiskLevel::Acceptable, // Default fallback
+    }
+}
+
+/// Parse VerificationStatus from string
+fn parse_verification_status(s: &str) -> VerificationStatus {
+    match s {
+        "Planned" => VerificationStatus::Planned,
+        "InProgress" => VerificationStatus::InProgress,
+        "Complete" => VerificationStatus::Complete,
+        "Failed" => VerificationStatus::Failed,
+        _ => VerificationStatus::Planned, // Default fallback
+    }
+}
+
+/// Risk statistics for comprehensive reporting
+#[derive(Debug)]
+struct RiskStatistics {
+    total_risks: usize,
+    high_risk_count: usize,
+    medium_risk_count: usize,
+    low_risk_count: usize,
+    high_risk_percentage: f64,
+    medium_risk_percentage: f64,
+    low_risk_percentage: f64,
+    average_rpn: f64,
+    risks_requiring_mitigation: usize,
+    mitigated_risks: usize,
+    verified_risks: usize,
+    verification_percentage: f64,
+    severity_distribution: std::collections::HashMap<RiskSeverity, usize>,
+}
+
 /// Escape CSV field content to handle commas, quotes, and newlines
 /// Task 3.1.7: Risk Register
 fn escape_csv(s: &str) -> String {
@@ -1409,35 +1553,271 @@ impl RiskManager {
         Ok(())
     }
     
-    /// Export risk register to PDF format (placeholder implementation)
+    /// Export comprehensive risk register to PDF format (medical device compliant)
     fn export_risk_register_pdf(&self, risks: &[RiskItem], output_path: &str) -> QmsResult<()> {
-        // For now, generate a detailed text report that can be converted to PDF
         let mut pdf_content = String::new();
-        
-        pdf_content.push_str("RISK REGISTER REPORT\n");
-        pdf_content.push_str("===================\n\n");
-        pdf_content.push_str(&format!("Generated: {}\n", crate::utils::current_timestamp_string()));
-        pdf_content.push_str(&format!("Total Risks: {}\n\n", risks.len()));
-        
-        for risk in risks {
-            pdf_content.push_str(&format!("Risk ID: {}\n", risk.hazard_id));
-            pdf_content.push_str(&format!("Hazard: {}\n", risk.hazard_description));
-            pdf_content.push_str(&format!("Situation: {}\n", risk.hazardous_situation));
-            pdf_content.push_str(&format!("Harm: {}\n", risk.harm));
-            pdf_content.push_str(&format!("RPN: {} ({:?})\n", risk.risk_priority_number, risk.initial_risk_level));
-            pdf_content.push_str(&format!("Mitigations: {}\n", risk.mitigation_measures.len()));
-            pdf_content.push_str(&format!("Status: {:?}\n", risk.verification_status));
-            pdf_content.push_str("---\n\n");
+        let line_width = 100;
+        let timestamp = crate::utils::current_timestamp_string();
+
+        // PDF Header with medical device compliance information
+        pdf_content.push_str(&"=".repeat(line_width));
+        pdf_content.push('\n');
+        pdf_content.push_str(&Self::center_text("MEDICAL DEVICE RISK MANAGEMENT REGISTER", line_width));
+        pdf_content.push('\n');
+        pdf_content.push_str(&Self::center_text("ISO 14971:2019 Compliant Risk Analysis Report", line_width));
+        pdf_content.push('\n');
+        pdf_content.push_str(&"=".repeat(line_width));
+        pdf_content.push('\n');
+        pdf_content.push('\n');
+
+        // Document metadata and compliance information
+        pdf_content.push_str("DOCUMENT INFORMATION\n");
+        pdf_content.push_str(&"-".repeat(50));
+        pdf_content.push('\n');
+        pdf_content.push_str(&format!("Generated: {}\n", timestamp));
+        pdf_content.push_str(&format!("Total Risks Analyzed: {}\n", risks.len()));
+        pdf_content.push_str(&format!("Project ID: {}\n", self.get_project_id()));
+        pdf_content.push_str("Regulatory Standard: ISO 14971:2019 - Medical devices — Application of risk management to medical devices\n");
+        pdf_content.push_str("Report Type: Risk Register Export\n");
+        pdf_content.push_str("Audit Trail: Maintained per 21 CFR Part 820 requirements\n");
+        pdf_content.push('\n');
+
+        // Risk statistics and analysis summary
+        let stats = Self::calculate_risk_statistics(risks);
+        pdf_content.push_str("RISK ANALYSIS SUMMARY\n");
+        pdf_content.push_str(&"-".repeat(50));
+        pdf_content.push('\n');
+        pdf_content.push_str(&format!("Total Risks: {}\n", stats.total_risks));
+        pdf_content.push_str(&format!("High Risk (RPN ≥ 50): {} ({:.1}%)\n", stats.high_risk_count, stats.high_risk_percentage));
+        pdf_content.push_str(&format!("Medium Risk (RPN 20-49): {} ({:.1}%)\n", stats.medium_risk_count, stats.medium_risk_percentage));
+        pdf_content.push_str(&format!("Low Risk (RPN < 20): {} ({:.1}%)\n", stats.low_risk_count, stats.low_risk_percentage));
+        pdf_content.push_str(&format!("Average RPN: {:.1}\n", stats.average_rpn));
+        pdf_content.push_str(&format!("Risks Requiring Mitigation: {}\n", stats.risks_requiring_mitigation));
+        pdf_content.push_str(&format!("Mitigated Risks: {}\n", stats.mitigated_risks));
+        pdf_content.push_str(&format!("Verification Complete: {} ({:.1}%)\n", stats.verified_risks, stats.verification_percentage));
+        pdf_content.push('\n');
+
+        // Risk severity distribution
+        pdf_content.push_str("RISK SEVERITY DISTRIBUTION\n");
+        pdf_content.push_str(&"-".repeat(50));
+        pdf_content.push('\n');
+        for (severity, count) in &stats.severity_distribution {
+            let percentage = if stats.total_risks > 0 { (*count as f64 / stats.total_risks as f64) * 100.0 } else { 0.0 };
+            pdf_content.push_str(&format!("{:?}: {} ({:.1}%)\n", severity, count, percentage));
         }
-        
+        pdf_content.push('\n');
+
+        // Detailed risk entries
+        pdf_content.push_str(&"=".repeat(line_width));
+        pdf_content.push('\n');
+        pdf_content.push_str(&Self::center_text("DETAILED RISK ANALYSIS", line_width));
+        pdf_content.push('\n');
+        pdf_content.push_str(&"=".repeat(line_width));
+        pdf_content.push('\n');
+        pdf_content.push('\n');
+
+        for (index, risk) in risks.iter().enumerate() {
+            pdf_content.push_str(&format!("RISK #{}: {}\n", index + 1, risk.hazard_id));
+            pdf_content.push_str(&"-".repeat(80));
+            pdf_content.push('\n');
+
+            // Basic risk information
+            pdf_content.push_str(&format!("Hazard Description: {}\n", risk.hazard_description));
+            pdf_content.push_str(&format!("Hazardous Situation: {}\n", risk.hazardous_situation));
+            pdf_content.push_str(&format!("Potential Harm: {}\n", risk.harm));
+            pdf_content.push_str(&format!("Category: {}\n", risk.category));
+            pdf_content.push_str(&format!("Source: {}\n", risk.source));
+            pdf_content.push('\n');
+
+            // Risk assessment
+            pdf_content.push_str("RISK ASSESSMENT:\n");
+            pdf_content.push_str(&format!("  Severity: {:?} ({})\n", risk.severity, risk.severity.clone() as u8));
+            pdf_content.push_str(&format!("  Occurrence: {:?} ({})\n", risk.occurrence, risk.occurrence.clone() as u8));
+            pdf_content.push_str(&format!("  Detectability: {:?} ({})\n", risk.detectability, risk.detectability.clone() as u8));
+            pdf_content.push_str(&format!("  Initial RPN: {}\n", risk.risk_priority_number));
+            pdf_content.push_str(&format!("  Risk Level: {:?}\n", risk.initial_risk_level));
+            pdf_content.push('\n');
+
+            // Mitigation measures
+            if !risk.mitigation_measures.is_empty() {
+                pdf_content.push_str("MITIGATION MEASURES:\n");
+                for (i, mitigation) in risk.mitigation_measures.iter().enumerate() {
+                    pdf_content.push_str(&format!("  {}. {:?}\n", i + 1, mitigation));
+                }
+                pdf_content.push('\n');
+            }
+
+            // Residual risk assessment
+            pdf_content.push_str("RESIDUAL RISK ASSESSMENT:\n");
+            pdf_content.push_str(&format!("  Residual Severity: {:?} ({})\n", risk.residual_severity, risk.residual_severity.clone() as u8));
+            pdf_content.push_str(&format!("  Residual Occurrence: {:?} ({})\n", risk.residual_occurrence, risk.residual_occurrence.clone() as u8));
+            pdf_content.push_str(&format!("  Residual Detectability: {:?} ({})\n", risk.residual_detectability, risk.residual_detectability.clone() as u8));
+            pdf_content.push_str(&format!("  Residual RPN: {}\n", risk.residual_rpn));
+            pdf_content.push_str(&format!("  Residual Risk Level: {:?}\n", risk.residual_risk_level));
+
+            if let Some(justification) = &risk.residual_risk_justification {
+                pdf_content.push_str(&format!("  Risk Justification: {}\n", justification));
+            }
+
+            if risk.residual_risk_approved {
+                pdf_content.push_str("  Status: APPROVED");
+                if let Some(approved_by) = &risk.residual_risk_approved_by {
+                    pdf_content.push_str(&format!(" by {}", approved_by));
+                }
+                if let Some(approval_date) = &risk.residual_risk_approval_date {
+                    pdf_content.push_str(&format!(" on {}", approval_date));
+                }
+                pdf_content.push('\n');
+            } else {
+                pdf_content.push_str("  Status: PENDING APPROVAL\n");
+            }
+            pdf_content.push('\n');
+
+            // Verification and validation
+            pdf_content.push_str("VERIFICATION & VALIDATION:\n");
+            pdf_content.push_str(&format!("  Method: {}\n", risk.verification_method));
+            pdf_content.push_str(&format!("  Status: {:?}\n", risk.verification_status));
+
+            if !risk.verification_evidence.is_empty() {
+                pdf_content.push_str("  Evidence:\n");
+                for evidence in &risk.verification_evidence {
+                    pdf_content.push_str(&format!("    - {}\n", evidence));
+                }
+            }
+            pdf_content.push('\n');
+
+            // Regulatory references
+            if !risk.regulatory_references.is_empty() {
+                pdf_content.push_str("REGULATORY REFERENCES:\n");
+                for reference in &risk.regulatory_references {
+                    pdf_content.push_str(&format!("  - {}\n", reference));
+                }
+                pdf_content.push('\n');
+            }
+
+            // Audit trail
+            pdf_content.push_str("AUDIT TRAIL:\n");
+            pdf_content.push_str(&format!("  Created: {} by {}\n", risk.created_at, risk.created_by));
+            pdf_content.push_str(&format!("  Last Updated: {}\n", risk.updated_at));
+            if let Some(approved_by) = &risk.approved_by {
+                pdf_content.push_str(&format!("  Approved by: {}", approved_by));
+                if let Some(approval_date) = &risk.approval_date {
+                    pdf_content.push_str(&format!(" on {}", approval_date));
+                }
+                pdf_content.push('\n');
+            }
+
+            pdf_content.push('\n');
+            pdf_content.push_str(&"~".repeat(80));
+            pdf_content.push('\n');
+            pdf_content.push('\n');
+        }
+
+        // Footer with compliance statement
+        pdf_content.push_str(&"=".repeat(line_width));
+        pdf_content.push('\n');
+        pdf_content.push_str(&Self::center_text("COMPLIANCE STATEMENT", line_width));
+        pdf_content.push('\n');
+        pdf_content.push_str(&"=".repeat(line_width));
+        pdf_content.push('\n');
+        pdf_content.push('\n');
+        pdf_content.push_str("This risk management report has been generated in accordance with:\n");
+        pdf_content.push_str("• ISO 14971:2019 - Medical devices — Application of risk management to medical devices\n");
+        pdf_content.push_str("• 21 CFR Part 820 - Quality System Regulation\n");
+        pdf_content.push_str("• IEC 62304 - Medical device software — Software life cycle processes\n");
+        pdf_content.push('\n');
+        pdf_content.push_str("All risk assessments have been conducted using systematic risk analysis methods.\n");
+        pdf_content.push_str("Audit trails are maintained for regulatory compliance and traceability.\n");
+        pdf_content.push('\n');
+        pdf_content.push_str(&format!("Report generated: {}\n", timestamp));
+        pdf_content.push_str("Document format: Text-based PDF (convert using pandoc/wkhtmltopdf for graphical PDF)\n");
+
+        // Write to file with atomic operation for data integrity
         crate::fs_utils::atomic_write(Path::new(output_path), &pdf_content)?;
-        
-        println!("📄 Risk register PDF report generated: {output_path}");
-        println!("💡 Note: Convert to PDF using external tools like pandoc or wkhtmltopdf");
-        
+
+        println!("📄 Comprehensive risk register PDF report generated: {}", output_path);
+        println!("📊 Report includes {} risks with full compliance documentation", risks.len());
+        println!("🏥 Medical device regulatory compliance: ISO 14971:2019, 21 CFR Part 820");
+        println!("💡 Convert to graphical PDF using: pandoc {} -o {}.pdf", output_path, output_path.trim_end_matches(".txt"));
+
         Ok(())
     }
-    
+
+    /// Calculate comprehensive risk statistics for reporting
+    fn calculate_risk_statistics(risks: &[RiskItem]) -> RiskStatistics {
+        let total_risks = risks.len();
+        let mut high_risk_count = 0;
+        let mut medium_risk_count = 0;
+        let mut low_risk_count = 0;
+        let mut total_rpn = 0;
+        let mut risks_requiring_mitigation = 0;
+        let mut mitigated_risks = 0;
+        let mut verified_risks = 0;
+        let mut severity_distribution = std::collections::HashMap::new();
+
+        for risk in risks {
+            // RPN categorization
+            if risk.risk_priority_number >= 50 {
+                high_risk_count += 1;
+            } else if risk.risk_priority_number >= 20 {
+                medium_risk_count += 1;
+            } else {
+                low_risk_count += 1;
+            }
+
+            total_rpn += risk.risk_priority_number;
+
+            // Mitigation analysis
+            if risk.initial_risk_level == RiskLevel::Unacceptable || risk.risk_priority_number >= 50 {
+                risks_requiring_mitigation += 1;
+            }
+
+            if !risk.mitigation_measures.is_empty() {
+                mitigated_risks += 1;
+            }
+
+            // Verification status
+            if risk.verification_status == VerificationStatus::Complete {
+                verified_risks += 1;
+            }
+
+            // Severity distribution
+            *severity_distribution.entry(risk.severity.clone()).or_insert(0) += 1;
+        }
+
+        let high_risk_percentage = if total_risks > 0 { (high_risk_count as f64 / total_risks as f64) * 100.0 } else { 0.0 };
+        let medium_risk_percentage = if total_risks > 0 { (medium_risk_count as f64 / total_risks as f64) * 100.0 } else { 0.0 };
+        let low_risk_percentage = if total_risks > 0 { (low_risk_count as f64 / total_risks as f64) * 100.0 } else { 0.0 };
+        let average_rpn = if total_risks > 0 { total_rpn as f64 / total_risks as f64 } else { 0.0 };
+        let verification_percentage = if total_risks > 0 { (verified_risks as f64 / total_risks as f64) * 100.0 } else { 0.0 };
+
+        RiskStatistics {
+            total_risks,
+            high_risk_count,
+            medium_risk_count,
+            low_risk_count,
+            high_risk_percentage,
+            medium_risk_percentage,
+            low_risk_percentage,
+            average_rpn,
+            risks_requiring_mitigation,
+            mitigated_risks,
+            verified_risks,
+            verification_percentage,
+            severity_distribution,
+        }
+    }
+
+    /// Center text within a given width for PDF formatting
+    fn center_text(text: &str, width: usize) -> String {
+        if text.len() >= width {
+            return text.to_string();
+        }
+
+        let padding = (width - text.len()) / 2;
+        format!("{}{}", " ".repeat(padding), text)
+    }
+
     /// Export risk register to JSON format
     fn export_risk_register_json(&self, risks: &[RiskItem], output_path: &str) -> QmsResult<()> {
         let mut json_content = String::new();

@@ -38,6 +38,48 @@ impl std::error::Error for RepositoryError {}
 pub struct Repository;
 
 impl Repository {
+    /// Initialize project in a specific directory (for user-specific projects)
+    pub fn init_project_in_directory(name: &str, base_directory: &std::path::Path) -> Result<Project, RepositoryError> {
+        // Validate project name
+        if !Project::validate_name(name) {
+            return Err(RepositoryError::InvalidInput(
+                "Project name must be 1-100 characters".to_string(),
+            ));
+        }
+
+        // Generate project ID (UUID v4 format - simplified for std-only)
+        let project_id = Self::generate_project_id();
+        let project_path = base_directory.join(&project_id);
+
+        // Check if project already exists
+        if project_path.exists() {
+            return Err(RepositoryError::ProjectExists(name.to_string()));
+        }
+
+        // Create directory structure
+        Self::create_project_structure(&project_path)?;
+
+        // Create project metadata
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let project = Project {
+            id: project_id,
+            name: name.to_string(),
+            description: "QMS Project".to_string(),
+            version: "1.0".to_string(),
+            path: project_path.clone(),
+            created_at: now,
+        };
+
+        // Save project metadata
+        Self::save_project_metadata(&project)?;
+
+        Ok(project)
+    }
+
     pub fn init_project(name: &str, custom_path: Option<&str>) -> Result<Project, RepositoryError> {
         // Validate project name
         if !Project::validate_name(name) {

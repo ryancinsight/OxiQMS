@@ -65,22 +65,25 @@ impl<S: UserStorage> UserAuthenticator for PasswordAuthenticationStrategy<S> {
         }
         
         // Create session
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs();
+
         let session = UserSession {
             session_id: UserSession::generate_session_id(),
             user_id: user.username.clone(),
             username: user.username.clone(),
             roles: user.roles.clone(),
-            login_time: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)?
-                .as_secs(),
-            last_activity: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)?
-                .as_secs(),
+            permissions: self.extract_permissions(&user.roles),
+            login_time: now,
+            last_activity: now,
+            expires_at: now + 24 * 3600, // 24 hours
             ip_address: None,
-            expires_at: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)?
-                .as_secs() + 24 * 3600, // 24 hours
+            user_agent: None,
+            csrf_token: UserSession::generate_csrf_token(),
             is_active: true,
+            session_type: crate::modules::user_manager::interfaces::SessionType::CLI, // Default to CLI
+            data: std::collections::HashMap::new(),
         };
         
         Ok(AuthenticationResult {
@@ -116,6 +119,45 @@ impl<S: UserStorage> UserAuthenticator for PasswordAuthenticationStrategy<S> {
     
     fn verify_password(&self, password: &str, hash: &str) -> bool {
         self.hash_password(password) == hash
+    }
+}
+
+impl<S: UserStorage> PasswordAuthenticationStrategy<S> {
+    /// Extract permissions from roles
+    fn extract_permissions(&self, roles: &[crate::models::Role]) -> Vec<String> {
+        let mut permissions = Vec::new();
+
+        for role in roles {
+            for permission in &role.permissions {
+                let perm_str = match permission {
+                    crate::models::Permission::ReadDocuments => "read_documents",
+                    crate::models::Permission::WriteDocuments => "write_documents",
+                    crate::models::Permission::DeleteDocuments => "delete_documents",
+                    crate::models::Permission::ReadRisks => "read_risks",
+                    crate::models::Permission::WriteRisks => "write_risks",
+                    crate::models::Permission::DeleteRisks => "delete_risks",
+                    crate::models::Permission::ReadTrace => "read_trace",
+                    crate::models::Permission::WriteTrace => "write_trace",
+                    crate::models::Permission::DeleteTrace => "delete_trace",
+                    crate::models::Permission::ReadAudit => "read_audit",
+                    crate::models::Permission::ExportAudit => "export_audit",
+                    crate::models::Permission::ManageUsers => "manage_users",
+                    crate::models::Permission::GenerateReports => "generate_reports",
+                    crate::models::Permission::UserManagement => "user_management",
+                    crate::models::Permission::ProjectManagement => "project_management",
+                    crate::models::Permission::DocumentManagement => "document_management",
+                    crate::models::Permission::RiskManagement => "risk_management",
+                    crate::models::Permission::AuditAccess => "audit_access",
+                    crate::models::Permission::SystemConfiguration => "system_configuration",
+                };
+
+                if !permissions.contains(&perm_str.to_string()) {
+                    permissions.push(perm_str.to_string());
+                }
+            }
+        }
+
+        permissions
     }
 }
 

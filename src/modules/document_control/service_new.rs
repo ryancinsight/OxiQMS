@@ -191,7 +191,7 @@ impl DocumentService {
     ) -> QmsResult<Document> {
         // Generate UUID
         let id = crate::utils::generate_uuid();
-        let project_id = "default".to_string(); // TODO: get actual project ID
+        let project_id = crate::utils::user_context::get_current_project_id(); // Get actual project ID
         let version = "1.0.0".to_string();
         let file_path = format!("documents/{}/content.md", id);
 

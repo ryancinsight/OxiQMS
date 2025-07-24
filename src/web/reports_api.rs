@@ -7,7 +7,7 @@
 // - Dependency Inversion: Depends on report generator abstractions
 
 use crate::error::QmsResult;
-use crate::web::{HttpRequest, HttpResponse, Route, HttpMethod};
+use crate::web::{HttpRequest, HttpResponse};
 use crate::web::response::HttpStatus;
 use crate::json_utils::JsonValue;
 use crate::modules::report_generator::interfaces::report_interfaces::{OutputFormat, ReportContext};
@@ -327,58 +327,8 @@ impl ReportProvider for MedicalDeviceReportProvider {
 }
 
 impl ReportsApiHandler {
-    /// Register reports API routes (GRASP Controller Pattern)
-    pub fn register_routes(router: &mut crate::web::ApiRouter) -> QmsResult<()> {
-        // GET /api/reports - List available reports
-        let list_route = Route {
-            method: HttpMethod::GET,
-            path: "/api/reports".to_string(),
-            handler_name: "list_reports".to_string(),
-            requires_auth: true,
-            allowed_roles: vec![
-                "Administrator".to_string(),
-                "Quality Engineer".to_string(),
-                "Manager".to_string()
-            ],
-            rate_limit: Some(50),
-            description: "List available medical device compliance reports".to_string(),
-        };
-        router.register_route(list_route, Box::new(Self::handle_list_reports))?;
 
-        // POST /api/reports/generate - Generate a new report
-        let generate_route = Route {
-            method: HttpMethod::POST,
-            path: "/api/reports/generate".to_string(),
-            handler_name: "generate_report".to_string(),
-            requires_auth: true,
-            allowed_roles: vec![
-                "Administrator".to_string(),
-                "Quality Engineer".to_string(),
-                "Manager".to_string()
-            ],
-            rate_limit: Some(10),
-            description: "Generate a new compliance report".to_string(),
-        };
-        router.register_route(generate_route, Box::new(Self::handle_generate_report))?;
 
-        // GET /api/reports/{id}/status - Get report generation status
-        let status_route = Route {
-            method: HttpMethod::GET,
-            path: "/api/reports/{id}/status".to_string(),
-            handler_name: "report_status".to_string(),
-            requires_auth: true,
-            allowed_roles: vec![
-                "Administrator".to_string(),
-                "Quality Engineer".to_string(),
-                "Manager".to_string()
-            ],
-            rate_limit: Some(100),
-            description: "Get report generation status".to_string(),
-        };
-        router.register_route(status_route, Box::new(Self::handle_report_status))?;
-
-        Ok(())
-    }
 
     /// Handle GET /api/reports - List available reports
     pub fn handle_list_reports(_request: &HttpRequest) -> QmsResult<HttpResponse> {

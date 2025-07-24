@@ -256,7 +256,7 @@ impl TraceabilityManager {
             target_id: target_id.to_string(),
             link_type,
             created_at: current_timestamp().to_string(),
-            created_by: "system".to_string(), // TODO: Get from session in Phase 4
+            created_by: crate::utils::user_context::get_current_user_id(), // Get from user context
             verified: false,
             verified_at: None,
             verified_by: None,

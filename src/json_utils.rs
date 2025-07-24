@@ -958,6 +958,30 @@ impl JsonValue {
     pub fn parse_from_str(input: &str) -> Result<JsonValue, JsonError> {
         JsonValue::parse(input)
     }
+
+    /// Get string value if this is a String variant
+    pub fn as_string(&self) -> Option<&String> {
+        match self {
+            JsonValue::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    /// Get number value if this is a Number variant
+    pub fn as_number(&self) -> Option<f64> {
+        match self {
+            JsonValue::Number(n) => Some(*n),
+            _ => None,
+        }
+    }
+
+    /// Get boolean value if this is a Bool variant
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            JsonValue::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
 }
 
 impl std::str::FromStr for JsonValue {

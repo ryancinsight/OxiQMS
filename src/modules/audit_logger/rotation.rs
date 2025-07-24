@@ -98,18 +98,43 @@ pub fn rotate_to_daily_log(project_path: &Path, date: &str) -> QmsResult<bool> {
     Ok(true)
 }
 
-/// Check if compression should be enabled (simplified for stdlib-only)
-const fn should_compress() -> bool {
-    // For now, return false since we don't have external compression libraries
-    // In a real implementation, this would check configuration
-    false
+/// Check if compression should be enabled (configurable for stdlib-only)
+fn should_compress() -> bool {
+    // Enable compression for audit logs to save space
+    // This can be made configurable via environment variable or config file
+    std::env::var("QMS_DISABLE_COMPRESSION").is_err()
 }
 
-/// Simple compression implementation (placeholder for stdlib-only approach)
-const fn compress_log_file(_log_path: &Path) -> QmsResult<()> {
-    // Placeholder for compression - would implement simple compression algorithm
-    // For medical device compliance, you might want to use a certified compression library
-    // For now, we'll skip compression and focus on rotation and retention
+/// Stdlib-only compression implementation for audit log files
+fn compress_log_file(log_path: &Path) -> QmsResult<()> {
+    if !log_path.exists() {
+        return Err(QmsError::validation_error("Log file does not exist"));
+    }
+
+    // Read the original log file
+    let original_data = std::fs::read(log_path)
+        .map_err(|e| QmsError::io_error(&format!("Failed to read log file: {e}")))?;
+
+    // Compress using our stdlib-only compression
+    let compressed_data = compress_audit_log_data(&original_data)?;
+
+    // Write compressed file with .gz extension
+    let compressed_path = log_path.with_extension("log.gz");
+    std::fs::write(&compressed_path, &compressed_data)
+        .map_err(|e| QmsError::io_error(&format!("Failed to write compressed file: {e}")))?;
+
+    // Remove original file after successful compression
+    std::fs::remove_file(log_path)
+        .map_err(|e| QmsError::io_error(&format!("Failed to remove original file: {e}")))?;
+
+    // Log the compression event
+    log_system_event("AUDIT_LOG_COMPRESSED", &format!(
+        "Log file compressed: {} -> {} (ratio: {:.1}%)",
+        log_path.display(),
+        compressed_path.display(),
+        (1.0 - (compressed_data.len() as f64 / original_data.len() as f64)) * 100.0
+    ))?;
+
     Ok(())
 }
 
@@ -343,4 +368,149 @@ mod tests {
         assert_eq!(stats.daily_files_count, 0);
         assert_eq!(stats.total_daily_size, 0);
     }
+}
+
+/// Stdlib-only compression for audit log data using multiple techniques
+fn compress_audit_log_data(data: &[u8]) -> QmsResult<Vec<u8>> {
+    let mut compressed = Vec::with_capacity(data.len() + 20);
+
+    // Add QMS audit log compression header
+    compressed.extend_from_slice(b"QMS_AUDIT_V1"); // 12-byte header
+    compressed.extend_from_slice(&(data.len() as u64).to_le_bytes()); // 8-byte original size
+
+    if data.is_empty() {
+        return Ok(compressed);
+    }
+
+    // Phase 1: Audit log specific pattern compression
+    let pattern_compressed = compress_audit_patterns(data);
+
+    // Phase 2: Run-Length Encoding for repeated characters
+    let rle_compressed = apply_simple_rle(&pattern_compressed);
+
+    // Phase 3: Byte frequency optimization
+    let final_compressed = apply_byte_frequency_compression(&rle_compressed);
+
+    compressed.extend_from_slice(&final_compressed);
+
+    // Ensure compression was beneficial
+    if compressed.len() >= data.len() + 20 {
+        // Store uncompressed with different header
+        let mut uncompressed = Vec::with_capacity(data.len() + 20);
+        uncompressed.extend_from_slice(b"QMS_AUDIT_RAW"); // Raw data header
+        uncompressed.extend_from_slice(&(data.len() as u64).to_le_bytes());
+        uncompressed.extend_from_slice(data);
+        Ok(uncompressed)
+    } else {
+        Ok(compressed)
+    }
+}
+
+/// Compress common audit log patterns
+fn compress_audit_patterns(data: &[u8]) -> Vec<u8> {
+    let data_str = String::from_utf8_lossy(data);
+    let mut compressed = String::new();
+
+    // Common audit log patterns to compress
+    let patterns = [
+        ("AUDIT_ENTRY:", "AE:"),
+        ("timestamp:", "ts:"),
+        ("user_id:", "uid:"),
+        ("action:", "act:"),
+        ("entity_type:", "et:"),
+        ("entity_id:", "eid:"),
+        ("checksum:", "cs:"),
+        ("CREATE", "C"),
+        ("UPDATE", "U"),
+        ("DELETE", "D"),
+        ("READ", "R"),
+        ("DOCUMENT", "DOC"),
+        ("RISK", "RSK"),
+        ("REQUIREMENT", "REQ"),
+        ("TEST_CASE", "TC"),
+    ];
+
+    let mut result = data_str.to_string();
+    for (pattern, replacement) in &patterns {
+        result = result.replace(pattern, replacement);
+    }
+
+    compressed = result;
+    compressed.into_bytes()
+}
+
+/// Apply simple Run-Length Encoding
+fn apply_simple_rle(data: &[u8]) -> Vec<u8> {
+    let mut compressed = Vec::new();
+    let mut i = 0;
+
+    while i < data.len() {
+        let current_byte = data[i];
+        let mut count = 1;
+
+        // Count consecutive identical bytes
+        while i + count < data.len() && data[i + count] == current_byte && count < 255 {
+            count += 1;
+        }
+
+        if count >= 4 {
+            // Use RLE for runs of 4 or more (more conservative for text data)
+            compressed.push(0xFE); // RLE marker
+            compressed.push(current_byte);
+            compressed.push(count as u8);
+        } else {
+            // Store bytes directly
+            for _ in 0..count {
+                compressed.push(current_byte);
+            }
+        }
+
+        i += count;
+    }
+
+    compressed
+}
+
+/// Apply byte frequency compression for common characters
+fn apply_byte_frequency_compression(data: &[u8]) -> Vec<u8> {
+    // Build frequency table
+    let mut freq = [0u32; 256];
+    for &byte in data {
+        freq[byte as usize] += 1;
+    }
+
+    // Find most frequent bytes
+    let mut freq_pairs: Vec<_> = freq.iter().enumerate().collect();
+    freq_pairs.sort_by(|a, b| b.1.cmp(a.1));
+
+    // Create mapping for top 8 most frequent bytes
+    let mut mapping = [None; 256];
+    for (i, &(byte, count)) in freq_pairs.iter().take(8).enumerate() {
+        if *count > 20 {  // Only map if frequent enough
+            mapping[byte] = Some(i as u8);
+        }
+    }
+
+    let mut compressed = Vec::new();
+
+    // Store mapping table (8 bytes for top frequent bytes)
+    for i in 0..8 {
+        if let Some((byte, _)) = freq_pairs.get(i) {
+            compressed.push(*byte as u8);
+        } else {
+            compressed.push(0);
+        }
+    }
+
+    // Compress data using mapping
+    for &byte in data {
+        if let Some(short_code) = mapping[byte as usize] {
+            compressed.push(0xFD); // Frequency marker
+            compressed.push(short_code);
+        } else {
+            compressed.push(byte);
+        }
+    }
+
+    compressed
 }

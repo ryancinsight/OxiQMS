@@ -66,6 +66,54 @@ impl QmsApiClient {
         self.make_request_internal(req)
     }
 
+    /// Make GET request
+    pub fn get(&self, path: &str) -> QmsResult<ApiResponse> {
+        let url = format!("{}{}", self.base_url, path);
+        let request = ApiRequest {
+            method: HttpMethod::Get,
+            url,
+            headers: std::collections::HashMap::new(),
+            body: None,
+        };
+        self.request(request)
+    }
+
+    /// Make POST request
+    pub fn post(&self, path: &str, body: Option<String>) -> QmsResult<ApiResponse> {
+        let url = format!("{}{}", self.base_url, path);
+        let request = ApiRequest {
+            method: HttpMethod::Post,
+            url,
+            headers: std::collections::HashMap::new(),
+            body,
+        };
+        self.request(request)
+    }
+
+    /// Make PUT request
+    pub fn put(&self, path: &str, body: Option<String>) -> QmsResult<ApiResponse> {
+        let url = format!("{}{}", self.base_url, path);
+        let request = ApiRequest {
+            method: HttpMethod::Put,
+            url,
+            headers: std::collections::HashMap::new(),
+            body,
+        };
+        self.request(request)
+    }
+
+    /// Make DELETE request
+    pub fn delete(&self, path: &str) -> QmsResult<ApiResponse> {
+        let url = format!("{}{}", self.base_url, path);
+        let request = ApiRequest {
+            method: HttpMethod::Delete,
+            url,
+            headers: std::collections::HashMap::new(),
+            body: None,
+        };
+        self.request(request)
+    }
+
     /// Internal request implementation (enhanced mock for development)
     fn make_request_internal(&self, req: ApiRequest) -> QmsResult<ApiResponse> {
         // This is a comprehensive mock implementation for development and testing

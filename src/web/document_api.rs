@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use crate::web::request::HttpRequest;
 use crate::web::response::{HttpResponse, HttpStatus};
-use crate::web::router::ApiRouter;
+
 use crate::modules::document_control::service::DocumentService;
 use crate::modules::document_control::document::{Document, DocumentType, DocumentStatus};
 use crate::modules::document_control::version::VersionChangeType;
@@ -32,108 +32,7 @@ impl DocumentApiHandler {
             .ok_or_else(|| QmsError::validation_error("Document ID is required")).copied()
     }
 
-    /// Register all document API routes with the router
-    pub fn register_routes(mut router: ApiRouter, _project_path: std::path::PathBuf) -> QmsResult<ApiRouter> {
-        use crate::web::router::{Route, HttpMethod};
 
-        // GET /api/v1/documents - List documents with filtering
-        let list_route = Route {
-            method: HttpMethod::GET,
-            path: "/api/v1/documents".to_string(),
-            handler_name: "list_documents".to_string(),
-            requires_auth: true,
-            allowed_roles: vec!["Administrator".to_string(), "Quality Engineer".to_string(), "Developer".to_string()],
-            rate_limit: Some(100),
-            description: "List all documents with optional filtering".to_string(),
-        };
-        router.register_route(list_route, Box::new(Self::handle_list_documents))?;
-
-        // GET /api/v1/documents/{id} - Get specific document
-        let get_route = Route {
-            method: HttpMethod::GET,
-            path: "/api/v1/documents/{id}".to_string(),
-            handler_name: "get_document".to_string(),
-            requires_auth: true,
-            allowed_roles: vec!["Administrator".to_string(), "Quality Engineer".to_string(), "Developer".to_string()],
-            rate_limit: Some(100),
-            description: "Get document by ID".to_string(),
-        };
-        router.register_route(get_route, Box::new(Self::handle_get_document))?;
-
-        // POST /api/v1/documents - Create new document
-        let create_route = Route {
-            method: HttpMethod::POST,
-            path: "/api/v1/documents".to_string(),
-            handler_name: "create_document".to_string(),
-            requires_auth: true,
-            allowed_roles: vec!["Administrator".to_string(), "Quality Engineer".to_string(), "Developer".to_string()],
-            rate_limit: Some(50),
-            description: "Create new document".to_string(),
-        };
-        router.register_route(create_route, Box::new(Self::handle_create_document))?;
-
-        // PUT /api/v1/documents/{id} - Update document
-        let update_route = Route {
-            method: HttpMethod::PUT,
-            path: "/api/v1/documents/{id}".to_string(),
-            handler_name: "update_document".to_string(),
-            requires_auth: true,
-            allowed_roles: vec!["Administrator".to_string(), "Quality Engineer".to_string(), "Developer".to_string()],
-            rate_limit: Some(50),
-            description: "Update document by ID".to_string(),
-        };
-        router.register_route(update_route, Box::new(Self::handle_update_document))?;
-
-        // DELETE /api/v1/documents/{id} - Delete document
-        let delete_route = Route {
-            method: HttpMethod::DELETE,
-            path: "/api/v1/documents/{id}".to_string(),
-            handler_name: "delete_document".to_string(),
-            requires_auth: true,
-            allowed_roles: vec!["Administrator".to_string(), "Quality Engineer".to_string()],
-            rate_limit: Some(10),
-            description: "Delete document by ID".to_string(),
-        };
-        router.register_route(delete_route, Box::new(Self::handle_delete_document))?;
-
-        // POST /api/v1/documents/{id}/approve - Approve document
-        let approve_route = Route {
-            method: HttpMethod::POST,
-            path: "/api/v1/documents/{id}/approve".to_string(),
-            handler_name: "approve_document".to_string(),
-            requires_auth: true,
-            allowed_roles: vec!["Administrator".to_string(), "Quality Engineer".to_string()],
-            rate_limit: Some(20),
-            description: "Approve document for production use".to_string(),
-        };
-        router.register_route(approve_route, Box::new(Self::handle_approve_document))?;
-
-        // POST /api/v1/documents/{id}/checkout - Checkout document for editing
-        let checkout_route = Route {
-            method: HttpMethod::POST,
-            path: "/api/v1/documents/{id}/checkout".to_string(),
-            handler_name: "checkout_document".to_string(),
-            requires_auth: true,
-            allowed_roles: vec!["Administrator".to_string(), "Quality Engineer".to_string(), "Developer".to_string()],
-            rate_limit: Some(30),
-            description: "Checkout document for exclusive editing".to_string(),
-        };
-        router.register_route(checkout_route, Box::new(Self::handle_checkout_document))?;
-
-        // POST /api/v1/documents/{id}/checkin - Checkin document after editing
-        let checkin_route = Route {
-            method: HttpMethod::POST,
-            path: "/api/v1/documents/{id}/checkin".to_string(),
-            handler_name: "checkin_document".to_string(),
-            requires_auth: true,
-            allowed_roles: vec!["Administrator".to_string(), "Quality Engineer".to_string(), "Developer".to_string()],
-            rate_limit: Some(30),
-            description: "Checkin document after editing".to_string(),
-        };
-        router.register_route(checkin_route, Box::new(Self::handle_checkin_document))?;
-
-        Ok(router)
-    }
 
     /// Handle GET /api/v1/documents - List documents with filtering
     fn handle_list_documents(request: &HttpRequest) -> QmsResult<HttpResponse> {

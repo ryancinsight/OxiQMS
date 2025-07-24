@@ -38,7 +38,7 @@ fn handle_test_create(args: Vec<String>, manager: &mut TestCaseManager) -> QmsRe
     let mut description = String::new();
     let mut category = TestCategory::Functional;
     let mut priority = TestPriority::Medium;
-    let created_by = "current_user".to_string(); // TODO: Get from session
+    let created_by = crate::utils::user_context::get_current_user_id(); // Get from user context
     
     let mut i = 1;
     while i < args.len() {
@@ -206,7 +206,7 @@ fn handle_test_execute(args: Vec<String>, manager: &mut TestCaseManager) -> QmsR
     }
     
     let test_id = &args[1];
-    let executed_by = "current_user".to_string(); // TODO: Get from session
+    let executed_by = crate::utils::user_context::get_current_user_id(); // Get from user context
     let mut environment = None;
     
     let mut i = 2;

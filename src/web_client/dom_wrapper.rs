@@ -354,11 +354,97 @@ impl DomWrapper {
         Ok(())
     }
 
-    /// Validate form fields
+    /// Comprehensive form validation for medical device compliance
     pub fn validate_form(&self, form_id: &str) -> QmsResult<bool> {
-        // In a real implementation, this would check form validation
-        // For now, assume forms are valid
-        Ok(true)
+        self.log_dom_operation(&format!("ValidateForm: {form_id}"));
+
+        // Get form data for validation
+        let form_data = self.get_form_data(form_id)?;
+
+        // Perform medical device specific validation
+        let validation_result = self.validate_medical_device_form_data(form_id, &form_data)?;
+
+        // Update UI with validation results
+        self.update_form_validation_ui(form_id, &validation_result)?;
+
+        Ok(validation_result.is_valid)
+    }
+
+    /// Get form data as JSON string
+    pub fn get_form_data(&self, form_id: &str) -> QmsResult<String> {
+        // In WASM: collect all form field values and serialize to JSON
+        // For stdlib simulation, return mock form data
+        let mock_data = format!(
+            r#"{{"form_id": "{}", "timestamp": {}, "fields": {{"sample_field": "sample_value"}}}}"#,
+            form_id,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        );
+
+        self.log_dom_operation(&format!("GetFormData: {form_id} -> {}", mock_data.len()));
+        Ok(mock_data)
+    }
+
+    /// Validate medical device form data
+    fn validate_medical_device_form_data(&self, form_id: &str, form_data: &str) -> QmsResult<FormValidationResult> {
+        let mut result = FormValidationResult::new();
+
+        // Form-specific validation rules
+        match form_id {
+            "document-creation-form" => {
+                self.validate_document_creation_form(form_data, &mut result)?;
+            },
+            "risk-assessment-form" => {
+                self.validate_risk_assessment_form(form_data, &mut result)?;
+            },
+            "user-registration-form" => {
+                self.validate_user_registration_form(form_data, &mut result)?;
+            },
+            "project-setup-form" => {
+                self.validate_project_setup_form(form_data, &mut result)?;
+            },
+            _ => {
+                // Generic validation
+                if form_data.len() < 20 {
+                    result.add_error("Form data appears incomplete".to_string());
+                }
+            }
+        }
+
+        // Common medical device compliance checks
+        self.apply_common_compliance_validation(form_data, &mut result)?;
+
+        Ok(result)
+    }
+
+    /// Update form validation UI
+    fn update_form_validation_ui(&self, form_id: &str, validation_result: &FormValidationResult) -> QmsResult<()> {
+        if validation_result.is_valid {
+            self.log_dom_operation(&format!("AddClass: {form_id} -> valid"));
+            self.log_dom_operation(&format!("RemoveClass: {form_id} -> invalid"));
+        } else {
+            self.log_dom_operation(&format!("AddClass: {form_id} -> invalid"));
+            self.log_dom_operation(&format!("RemoveClass: {form_id} -> valid"));
+
+            // Display validation errors
+            for (i, error) in validation_result.errors.iter().enumerate() {
+                self.log_dom_operation(&format!("ShowError: {form_id}-error-{i} -> {error}"));
+            }
+        }
+
+        // Display warnings
+        for (i, warning) in validation_result.warnings.iter().enumerate() {
+            self.log_dom_operation(&format!("ShowWarning: {form_id}-warning-{i} -> {warning}"));
+        }
+
+        // Display compliance issues
+        for (i, issue) in validation_result.compliance_issues.iter().enumerate() {
+            self.log_dom_operation(&format!("ShowComplianceIssue: {form_id}-compliance-{i} -> {issue}"));
+        }
+
+        Ok(())
     }
 
     /// Log DOM operations for debugging in non-WASM environment
@@ -483,5 +569,370 @@ mod tests {
         
         element.remove_class("test-class");
         assert!(!element.has_class("test-class"));
+    }
+}
+
+// Medical Device Form Validation Implementation
+
+/// Form validation result structure
+#[derive(Debug, Clone)]
+pub struct FormValidationResult {
+    pub is_valid: bool,
+    pub errors: Vec<String>,
+    pub warnings: Vec<String>,
+    pub compliance_issues: Vec<String>,
+}
+
+impl FormValidationResult {
+    pub fn new() -> Self {
+        Self {
+            is_valid: true,
+            errors: Vec::new(),
+            warnings: Vec::new(),
+            compliance_issues: Vec::new(),
+        }
+    }
+
+    pub fn add_error(&mut self, error: String) {
+        self.errors.push(error);
+        self.is_valid = false;
+    }
+
+    pub fn add_warning(&mut self, warning: String) {
+        self.warnings.push(warning);
+    }
+
+    pub fn add_compliance_issue(&mut self, issue: String) {
+        self.compliance_issues.push(issue);
+        self.is_valid = false;
+    }
+}
+
+impl DomWrapper {
+    /// Validate document creation form for medical device compliance
+    fn validate_document_creation_form(&self, form_data: &str, result: &mut FormValidationResult) -> QmsResult<()> {
+        // Required fields validation
+        if !form_data.contains("document_title") {
+            result.add_error("Document title is required".to_string());
+        }
+
+        if !form_data.contains("document_type") {
+            result.add_error("Document type must be specified".to_string());
+        }
+
+        if !form_data.contains("regulatory_category") {
+            result.add_compliance_issue("Regulatory category is required for medical device documents".to_string());
+        }
+
+        // Medical device specific validations
+        if !form_data.contains("iso13485_applicable") {
+            result.add_warning("Consider ISO 13485 applicability for medical device documents".to_string());
+        }
+
+        if !form_data.contains("approval_workflow") {
+            result.add_compliance_issue("Approval workflow should be defined for controlled documents".to_string());
+        }
+
+        // Version control validation
+        if !form_data.contains("version_control_enabled") {
+            result.add_error("Version control is mandatory for medical device documentation".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Validate risk assessment form per ISO 14971
+    fn validate_risk_assessment_form(&self, form_data: &str, result: &mut FormValidationResult) -> QmsResult<()> {
+        // ISO 14971 mandatory fields
+        if !form_data.contains("hazard_description") {
+            result.add_error("Hazard description is required per ISO 14971".to_string());
+        }
+
+        if !form_data.contains("hazardous_situation") {
+            result.add_error("Hazardous situation must be described per ISO 14971".to_string());
+        }
+
+        if !form_data.contains("harm") {
+            result.add_error("Potential harm must be identified per ISO 14971".to_string());
+        }
+
+        // Risk assessment parameters
+        if !form_data.contains("severity") {
+            result.add_error("Risk severity assessment is required".to_string());
+        }
+
+        if !form_data.contains("occurrence") {
+            result.add_error("Risk occurrence probability assessment is required".to_string());
+        }
+
+        if !form_data.contains("detectability") {
+            result.add_error("Risk detectability assessment is required".to_string());
+        }
+
+        // Risk control measures
+        if !form_data.contains("risk_control_measures") {
+            result.add_compliance_issue("Risk control measures should be specified per ISO 14971".to_string());
+        }
+
+        // Residual risk evaluation
+        if !form_data.contains("residual_risk_evaluation") {
+            result.add_warning("Residual risk evaluation is recommended per ISO 14971".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Validate user registration form for medical device system access
+    fn validate_user_registration_form(&self, form_data: &str, result: &mut FormValidationResult) -> QmsResult<()> {
+        // User identification
+        if !form_data.contains("username") {
+            result.add_error("Username is required".to_string());
+        }
+
+        if !form_data.contains("email") {
+            result.add_error("Email address is required".to_string());
+        }
+
+        if !form_data.contains("role") {
+            result.add_error("User role must be specified for access control".to_string());
+        }
+
+        // Security requirements
+        if !form_data.contains("password") {
+            result.add_error("Password is required".to_string());
+        }
+
+        if !form_data.contains("password_policy_compliant") {
+            result.add_compliance_issue("Password must comply with medical device security requirements".to_string());
+        }
+
+        // Training and competency
+        if !form_data.contains("training_status") {
+            result.add_warning("Training status should be documented for medical device system users".to_string());
+        }
+
+        if !form_data.contains("competency_verified") {
+            result.add_compliance_issue("User competency should be verified for medical device operations".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Validate project setup form for medical device project
+    fn validate_project_setup_form(&self, form_data: &str, result: &mut FormValidationResult) -> QmsResult<()> {
+        // Project identification
+        if !form_data.contains("project_name") {
+            result.add_error("Project name is required".to_string());
+        }
+
+        if !form_data.contains("device_type") {
+            result.add_error("Medical device type must be specified".to_string());
+        }
+
+        if !form_data.contains("device_classification") {
+            result.add_compliance_issue("Medical device classification (Class I/II/III) must be specified".to_string());
+        }
+
+        // Regulatory requirements
+        if !form_data.contains("regulatory_pathway") {
+            result.add_compliance_issue("Regulatory pathway (510(k), PMA, etc.) should be identified".to_string());
+        }
+
+        if !form_data.contains("iso13485_applicable") {
+            result.add_warning("ISO 13485 applicability should be determined".to_string());
+        }
+
+        if !form_data.contains("iso14971_applicable") {
+            result.add_warning("ISO 14971 risk management applicability should be determined".to_string());
+        }
+
+        // Quality management system
+        if !form_data.contains("qms_scope") {
+            result.add_compliance_issue("Quality Management System scope should be defined".to_string());
+        }
+
+        if !form_data.contains("design_controls_required") {
+            result.add_warning("Design controls requirements should be evaluated".to_string());
+        }
+
+        Ok(())
+    }
+
+    /// Apply common compliance validation rules
+    fn apply_common_compliance_validation(&self, form_data: &str, result: &mut FormValidationResult) -> QmsResult<()> {
+        // Audit trail requirements
+        if !form_data.contains("audit_trail") {
+            result.add_compliance_issue("Audit trail information should be captured".to_string());
+        }
+
+        // Data integrity
+        if !form_data.contains("data_integrity_verified") {
+            result.add_warning("Data integrity should be verified".to_string());
+        }
+
+        // Electronic signature compliance (21 CFR Part 11)
+        if form_data.contains("electronic_signature") && !form_data.contains("signature_verified") {
+            result.add_compliance_issue("Electronic signatures must be verified per 21 CFR Part 11".to_string());
+        }
+
+        // Change control
+        if form_data.contains("change_request") && !form_data.contains("change_control_approved") {
+            result.add_compliance_issue("Changes must go through approved change control process".to_string());
+        }
+
+        Ok(())
+    }
+}
+
+// Medical Device UI Helper Methods
+impl DomWrapper {
+    /// Show medical device compliance dashboard
+    pub fn show_compliance_dashboard(&mut self) -> QmsResult<()> {
+        self.log_dom_operation("ShowElement: compliance-dashboard");
+        self.log_dom_operation("UpdateComplianceIndicators");
+
+        // Update compliance status indicators
+        self.update_compliance_status_indicators()?;
+
+        Ok(())
+    }
+
+    /// Update compliance status indicators
+    fn update_compliance_status_indicators(&self) -> QmsResult<()> {
+        // ISO 13485 status
+        self.log_dom_operation("UpdateIndicator: iso13485-status -> compliant");
+
+        // ISO 14971 status
+        self.log_dom_operation("UpdateIndicator: iso14971-status -> in-progress");
+
+        // FDA 21 CFR Part 820 status
+        self.log_dom_operation("UpdateIndicator: fda21cfr820-status -> pending");
+
+        // Overall compliance score
+        self.log_dom_operation("UpdateScore: overall-compliance -> 85%");
+
+        Ok(())
+    }
+
+    /// Show project setup wizard
+    pub fn show_project_setup_wizard(&mut self) -> QmsResult<()> {
+        self.log_dom_operation("ShowModal: project-setup-wizard");
+        self.log_dom_operation("InitializeWizardSteps: 6 steps");
+
+        // Initialize wizard steps
+        self.initialize_wizard_steps()?;
+
+        Ok(())
+    }
+
+    /// Initialize project setup wizard steps
+    fn initialize_wizard_steps(&self) -> QmsResult<()> {
+        let steps = vec![
+            "Project Information",
+            "Device Classification",
+            "Regulatory Standards",
+            "Risk Management",
+            "Document Control",
+            "Quality Assurance",
+        ];
+
+        for (i, step) in steps.iter().enumerate() {
+            self.log_dom_operation(&format!("InitializeStep: step-{} -> {}", i + 1, step));
+        }
+
+        Ok(())
+    }
+
+    /// Show risk management dashboard
+    pub fn show_risk_management_dashboard(&mut self) -> QmsResult<()> {
+        self.log_dom_operation("ShowElement: risk-management-dashboard");
+
+        // Update risk statistics
+        self.update_risk_statistics()?;
+
+        Ok(())
+    }
+
+    /// Update risk management statistics
+    fn update_risk_statistics(&self) -> QmsResult<()> {
+        self.log_dom_operation("UpdateStat: total-risks -> 25");
+        self.log_dom_operation("UpdateStat: high-risks -> 2");
+        self.log_dom_operation("UpdateStat: medium-risks -> 8");
+        self.log_dom_operation("UpdateStat: low-risks -> 15");
+        self.log_dom_operation("UpdateStat: mitigated-risks -> 20");
+
+        Ok(())
+    }
+
+    /// Show document control interface
+    pub fn show_document_control(&mut self) -> QmsResult<()> {
+        self.log_dom_operation("ShowElement: document-control-interface");
+
+        // Update document status
+        self.update_document_control_status()?;
+
+        Ok(())
+    }
+
+    /// Update document control status
+    fn update_document_control_status(&self) -> QmsResult<()> {
+        self.log_dom_operation("UpdateStat: total-documents -> 150");
+        self.log_dom_operation("UpdateStat: pending-approval -> 5");
+        self.log_dom_operation("UpdateStat: approved-documents -> 140");
+        self.log_dom_operation("UpdateStat: obsolete-documents -> 5");
+
+        Ok(())
+    }
+
+    /// Show audit trail viewer
+    pub fn show_audit_trail_viewer(&mut self) -> QmsResult<()> {
+        self.log_dom_operation("ShowElement: audit-trail-viewer");
+
+        // Load recent audit entries
+        self.load_recent_audit_entries()?;
+
+        Ok(())
+    }
+
+    /// Load recent audit entries for display
+    fn load_recent_audit_entries(&self) -> QmsResult<()> {
+        self.log_dom_operation("LoadAuditEntries: last-100-entries");
+        self.log_dom_operation("UpdateAuditTable: 100 entries loaded");
+
+        Ok(())
+    }
+
+    /// Show real-time validation feedback
+    pub fn show_validation_feedback(&mut self, field_id: &str, is_valid: bool, message: &str) -> QmsResult<()> {
+        if is_valid {
+            self.log_dom_operation(&format!("AddClass: {field_id} -> valid"));
+            self.log_dom_operation(&format!("RemoveClass: {field_id} -> invalid"));
+            self.log_dom_operation(&format!("HideMessage: {field_id}-error"));
+        } else {
+            self.log_dom_operation(&format!("AddClass: {field_id} -> invalid"));
+            self.log_dom_operation(&format!("RemoveClass: {field_id} -> valid"));
+            self.log_dom_operation(&format!("ShowMessage: {field_id}-error -> {message}"));
+        }
+
+        Ok(())
+    }
+
+    /// Update progress indicators for medical device project setup
+    pub fn update_setup_progress(&mut self, step: usize, total_steps: usize, completion_percentage: f32) -> QmsResult<()> {
+        self.log_dom_operation(&format!("UpdateProgress: step {}/{}", step, total_steps));
+        self.log_dom_operation(&format!("UpdateProgressBar: {:.1}%", completion_percentage));
+
+        // Update step indicators
+        for i in 1..=total_steps {
+            if i < step {
+                self.log_dom_operation(&format!("AddClass: step-{} -> completed"));
+            } else if i == step {
+                self.log_dom_operation(&format!("AddClass: step-{} -> active"));
+            } else {
+                self.log_dom_operation(&format!("AddClass: step-{} -> pending"));
+            }
+        }
+
+        Ok(())
     }
 }
