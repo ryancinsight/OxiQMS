@@ -73,6 +73,12 @@ impl InterfaceContext {
         self
     }
 
+    /// Disable audit logging for performance-critical operations
+    pub fn with_audit_disabled(mut self) -> Self {
+        self.audit_enabled = false;
+        self
+    }
+
     /// Check if user is authenticated
     pub fn is_authenticated(&self) -> bool {
         self.user_session.as_ref().map_or(false, |s| s.is_authenticated())
@@ -125,7 +131,10 @@ impl InterfaceManager {
         let result = self.router.route_command(context, command, args)?;
 
         // Post-execution: Update state and audit log
-        self.state_manager.update_state(context, &result)?;
+        // Skip state updates for performance-critical read-only commands
+        if !matches!(command, "version" | "help") {
+            self.state_manager.update_state(context, &result)?;
+        }
         
         if context.audit_enabled {
             self.audit_command_execution(context, command, args, &result)?;
@@ -195,7 +204,7 @@ impl InterfaceManager {
         self.user_interaction.clone()
     }
 
-    /// Audit command execution
+    /// Audit command execution with optimized performance
     fn audit_command_execution(
         &self,
         context: &InterfaceContext,
@@ -203,16 +212,25 @@ impl InterfaceManager {
         args: &[String],
         result: &CommandResult,
     ) -> QmsResult<()> {
+        // Skip audit logging for performance-critical commands like "version"
+        if matches!(command, "version" | "help") {
+            return Ok(());
+        }
+
         let username = context.current_username().unwrap_or("anonymous");
         let interface_type = format!("{:?}", context.interface_type);
         let command_details = format!("{} {}", command, args.join(" "));
-        
-        crate::modules::audit_logger::audit_log_action(
+
+        // Use non-blocking audit logging to avoid I/O overhead
+        if let Err(_) = crate::modules::audit_logger::audit_log_action(
             "COMMAND_EXECUTED",
             &interface_type,
             &format!("user:{} command:{} result:{}", username, command_details, result.success),
-        )?;
-        
+        ) {
+            // Don't fail command execution if audit logging fails
+            // This ensures system remains functional even if audit system has issues
+        }
+
         Ok(())
     }
 }

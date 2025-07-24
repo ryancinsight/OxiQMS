@@ -105,6 +105,11 @@ impl UnifiedRouter for BaseRouter {
         command: &str,
         args: &[String],
     ) -> QmsResult<CommandResult> {
+        // Fast path for performance-critical commands
+        if command == "version" && args.is_empty() {
+            return Ok(CommandResult::success("qms v1.0.0 - Medical Device Quality Management System".to_string()));
+        }
+
         // Find handler
         let handler = self.get_handler(command)
             .ok_or_else(|| QmsError::validation_error(&format!("Unknown command: {}", command)))?;

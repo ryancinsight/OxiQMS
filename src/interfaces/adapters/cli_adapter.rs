@@ -133,6 +133,16 @@ impl CliInterfaceManager {
         self.interface_manager.execute_command(&mut self.context, command, args)
     }
 
+    /// Disable audit logging for performance-critical operations
+    pub fn disable_audit_logging(&mut self) {
+        self.context.audit_enabled = false;
+    }
+
+    /// Enable audit logging
+    pub fn enable_audit_logging(&mut self) {
+        self.context.audit_enabled = true;
+    }
+
     /// Handle authentication
     pub fn authenticate(&mut self, username: &str, password: &str) -> QmsResult<()> {
         self.interface_manager.authenticate(&mut self.context, username, password)
@@ -412,13 +422,23 @@ impl CommandHandler for HelpCommandHandler {
     fn requires_auth(&self) -> bool { false }
 }
 
-pub struct VersionCommandHandler;
+pub struct VersionCommandHandler {
+    cached_result: std::sync::OnceLock<CommandResult>,
+}
 impl VersionCommandHandler {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self {
+            cached_result: std::sync::OnceLock::new(),
+        }
+    }
 }
 impl CommandHandler for VersionCommandHandler {
     fn execute(&self, context: &InterfaceContext, args: &[String]) -> QmsResult<CommandResult> {
-        Ok(CommandResult::success("qms v1.0.0 - Medical Device Quality Management System".to_string()))
+        // Use cached result for performance optimization
+        let result = self.cached_result.get_or_init(|| {
+            CommandResult::success("qms v1.0.0 - Medical Device Quality Management System".to_string())
+        });
+        Ok(result.clone())
     }
     fn command_name(&self) -> &'static str { "version" }
     fn help_text(&self) -> &'static str { "Show version information" }

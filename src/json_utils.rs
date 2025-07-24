@@ -581,8 +581,10 @@ mod tests {
 
     #[test]
     fn test_schema_versioning() {
-        // Create a temporary file for testing
-        let temp_path = Path::new("test_schema.json");
+        // Create a unique temporary file for testing to avoid conflicts in parallel test execution
+        let temp_dir = std::env::temp_dir();
+        let temp_filename = format!("test_schema_{}.json", std::process::id());
+        let temp_path = temp_dir.join(temp_filename);
 
         // Test saving with schema
         let test_data = JsonValue::Object({
@@ -591,19 +593,19 @@ mod tests {
             obj
         });
 
-        let result = save_json_with_schema(temp_path, &test_data, "1.0");
-        assert!(result.is_ok());
+        let result = save_json_with_schema(&temp_path, &test_data, "1.0");
+        assert!(result.is_ok(), "Failed to save JSON with schema: {:?}", result.err());
 
         // Test loading with correct schema version
-        let loaded = load_json_with_schema(temp_path, "1.0");
-        assert!(loaded.is_ok());
+        let loaded = load_json_with_schema(&temp_path, "1.0");
+        assert!(loaded.is_ok(), "Failed to load JSON with correct schema version: {:?}", loaded.err());
 
         // Test loading with incorrect schema version
-        let loaded_wrong = load_json_with_schema(temp_path, "2.0");
-        assert!(loaded_wrong.is_err());
+        let loaded_wrong = load_json_with_schema(&temp_path, "2.0");
+        assert!(loaded_wrong.is_err(), "Should fail when loading with incorrect schema version");
 
         // Clean up
-        let _ = fs::remove_file(temp_path);
+        let _ = fs::remove_file(&temp_path);
     }
 
     #[test]
