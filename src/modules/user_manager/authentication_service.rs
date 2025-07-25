@@ -291,7 +291,7 @@ impl AuthenticationService {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        user.password_expires_at = now + (90 * 24 * 60 * 60); // 90 days
+        user.password_expires_at = now + (PASSWORD_EXPIRATION_DAYS * 24 * 60 * 60); // 90 days
 
         log_user_action(username, "PASSWORD_CHANGED", "authentication_service", "SUCCESS");
         
