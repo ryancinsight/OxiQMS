@@ -23,19 +23,41 @@ mod web;
 // #[cfg(test)]
 // mod test_audit_integration;
 
-use audit::{log_command_execution, log_error};
+use audit::{init_tracing, log_command_execution, log_error};
 use commands::{audit as audit_cmd, doc, init, report, req, risk, test, trace, user};
+use config::{Config, LoggingConfig};
 use web::server::QMSWebServer;
 use tui::app::run_tui;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    // Initialize audit logger
-    if let Err(e) = audit::setup_audit_logger() {
-        eprintln!("Error: Failed to initialize audit logger: {e}");
-        process::exit(1);
-    }
+    // Load configuration or use default
+    let config = Config::load(&Config::default().config_file_path())
+        .unwrap_or_else(|_| Config::default());
+    
+    // Initialize comprehensive tracing system
+    let _guard = match init_tracing(&config.logging) {
+        Ok(guard) => {
+            // Log successful initialization
+            log_command_execution("system_init");
+            audit::log_system_event("STARTUP", "tracing_system", "FDA-compliant audit logging initialized");
+            guard
+        }
+        Err(e) => {
+            eprintln!("Error: Failed to initialize tracing system: {e}");
+            eprintln!("Falling back to basic audit logging...");
+            
+            // Fall back to legacy audit logging
+            if let Err(e) = audit::setup_audit_logger() {
+                eprintln!("Error: Failed to initialize even basic audit logger: {e}");
+                process::exit(1);
+            }
+            
+            // Create a dummy guard
+            audit::create_dummy_guard()
+        }
+    };
 
     // Initialize user context system
     if let Ok(project_path) = utils::get_current_project_path() {
