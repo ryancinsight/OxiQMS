@@ -101,7 +101,7 @@ impl User {
             last_login: None,
             failed_login_attempts: 0,
             account_locked: false,
-            password_expires_at: now + (90 * 24 * 60 * 60), // 90 days
+            password_expires_at: now + (PASSWORD_EXPIRY_DAYS * 24 * 60 * 60), // 90 days
             mfa_enabled: false,
             mfa_secret: None,
         }
