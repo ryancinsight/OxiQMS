@@ -1,7 +1,13 @@
+//! Document approval and electronic signature system
+//! FDA 21 CFR Part 11 compliant electronic signatures with SHA-256 hashing
+
 use crate::error::{QmsError, QmsResult};
-use crate::modules::document_control::{document::DocumentStatus, service::DocumentService};
-use crate::utils::{current_date_string, get_current_project_path};
-use std::fs;
+use crate::models::{Document, User, Permission};
+use crate::modules::audit_logger::audit_log_action;
+use crate::utils::current_date_string;
+use sha2::{Sha256, Digest};
+use std::collections::HashMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Electronic signature for document approval
 #[derive(Debug, Clone)]
@@ -283,7 +289,7 @@ impl ApprovalWorkflow {
     pub fn create_electronic_signature(signer_id: &str, signer_name: &str, signing_reason: &str, authentication_method: &str) -> ElectronicSignature {
         let timestamp = current_date_string();
         let signature_data = format!("{signer_id}:{signer_name}:{timestamp}:{signing_reason}");
-        let signature_hash = format!("{:x}", md5::compute(signature_data));
+        let signature_hash = format!("{:x}", Sha256::digest(signature_data.as_bytes()));
 
         ElectronicSignature {
             signer_id: signer_id.to_string(),
@@ -310,7 +316,7 @@ impl ApprovalWorkflow {
             return Err(QmsError::validation_error("Signing reason cannot be empty"));
         }
 
-        if signature.signature_hash.len() != 32 {
+        if signature.signature_hash.len() != 64 { // SHA-256 is 64 characters
             return Err(QmsError::validation_error("Invalid signature hash format"));
         }
 
@@ -318,7 +324,7 @@ impl ApprovalWorkflow {
         let expected_data = format!("{}:{}:{}:{}", 
             signature.signer_id, signature.signer_name, 
             signature.signature_timestamp, signature.signing_reason);
-        let expected_hash = format!("{:x}", md5::compute(expected_data));
+        let expected_hash = format!("{:x}", Sha256::digest(expected_data.as_bytes()));
         
         if signature.signature_hash != expected_hash {
             return Err(QmsError::validation_error("Electronic signature verification failed"));
@@ -535,7 +541,7 @@ mod tests {
         assert_eq!(signature.signer_name, "John Doe");
         assert_eq!(signature.signing_reason, "Document approval");
         assert_eq!(signature.authentication_method, "password+2fa");
-        assert_eq!(signature.signature_hash.len(), 32);
+        assert_eq!(signature.signature_hash.len(), 64); // SHA-256 is 64 characters
     }
 
     #[test]

@@ -1,13 +1,18 @@
-use crate::prelude::*;
+//! User authentication module for QMS
+//! Implements secure password hashing using Argon2
+
+use crate::error::{QmsError, QmsResult};
 use crate::models::{User, Role, Permission};
 use crate::modules::audit_logger::audit_log_action;
 use crate::modules::user_manager::interfaces::UserStorage; // REFACTORED: Use abstraction
-use crate::modules::user_manager::implementations::{FileUserStorage, MemoryUserStorage}; // REFACTORED: Concrete implementations
-use std::collections::HashMap;
+use crate::modules::user_manager::implementations::memory_user_storage::MemoryUserStorage;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
+use argon2::{self, Config};
+use rand::Rng;
+use tracing::error;
 
 /// User authentication manager
 /// REFACTORED: Now uses dependency injection with UserStorage abstraction
@@ -66,11 +71,17 @@ impl MemoryAuthManager {
 }
 
 impl<S: UserStorage> AuthManager<S> {
-    /// Hash password using stdlib DefaultHasher
+    /// Hash password using Argon2 for security and FDA compliance
     pub fn hash_password(password: &str) -> String {
-        let mut hasher = DefaultHasher::new();
-        password.hash(&mut hasher);
-        format!("{:x}", hasher.finish())
+        let salt = rand::thread_rng().gen::<[u8; 32]>();
+        let config = Config::default();
+        argon2::hash_encoded(password.as_bytes(), &salt, &config)
+            .expect("Failed to hash password")
+    }
+    
+    /// Verify password against Argon2 hash
+    pub fn verify_password(password: &str, hash: &str) -> bool {
+        argon2::verify_encoded(hash, password.as_bytes()).is_ok()
     }
     
     /// Add new user
@@ -112,7 +123,7 @@ impl<S: UserStorage> AuthManager<S> {
     pub fn login(&mut self, username: &str, password: &str) -> QmsResult<UserSession> {
         let user = self.load_user(username)?;
         
-        if user.password_hash != Self::hash_password(password) {
+        if !Self::verify_password(password, &user.password_hash) {
             // Attempt audit logging, but don't fail login if audit logging fails
             if let Err(e) = audit_log_action("LOGIN_FAILED", "User", username) {
                 eprintln!("Warning: Failed to log login failure audit entry: {}", e);

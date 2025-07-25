@@ -240,15 +240,10 @@ pub fn get_current_project_path_safe() -> Option<std::path::PathBuf> {
     }
 }
 
-/// Calculate MD5 hash of a string (simple implementation)
-pub fn calculate_md5(content: &str) -> String {
-    // Simple hash calculation for document integrity
-    // In production, would use a proper MD5 implementation
-    let mut hash = 0u64;
-    for byte in content.bytes() {
-        hash = hash.wrapping_mul(31).wrapping_add(byte as u64);
-    }
-    format!("{hash:016x}")
+/// Calculate SHA-256 hash of a string for integrity verification
+pub fn calculate_sha256(content: &str) -> String {
+    use sha2::{Sha256, Digest};
+    format!("{:x}", Sha256::digest(content.as_bytes()))
 }
 
 #[cfg(test)]

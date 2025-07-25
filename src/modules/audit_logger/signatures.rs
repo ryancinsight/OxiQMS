@@ -1,11 +1,10 @@
-//! Electronic Signatures Module
-//! 
-//! Implements 21 CFR Part 11 compliant electronic signatures for critical QMS operations.
-//! Provides signature creation, validation, and management functionality.
+//! Audit log digital signatures for integrity verification
+//! Uses SHA-256 for cryptographically secure signatures
 
-use crate::prelude::*;
-use crate::json_utils::{JsonValue, JsonError, JsonSerializable};
-use std::collections::HashMap;
+use crate::error::{QmsError, QmsResult};
+use crate::modules::audit_logger::AuditEntry;
+use sha2::{Sha256, Digest};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Electronic signature data structure
 #[derive(Debug, Clone)]
@@ -74,9 +73,9 @@ impl ElectronicSignature {
         let id = crate::utils::generate_uuid();
         let timestamp = crate::utils::current_timestamp().to_string();
         
-        // Create signature hash
+        // Create signature hash using SHA-256
         let signature_data = format!("{user_id}|{timestamp}|{meaning}|{entity_type}|{entity_id}");
-        let signature_hash = crate::utils::calculate_md5(&signature_data);
+        let signature_hash = format!("{:x}", Sha256::digest(signature_data.as_bytes()));
 
         Ok(ElectronicSignature {
             id,
@@ -97,7 +96,7 @@ impl ElectronicSignature {
         let signature_data = format!("{}|{}|{}|{}|{}", 
                                     self.user_id, self.timestamp, self.meaning, 
                                     self.entity_type, self.entity_id);
-        let calculated_hash = crate::utils::calculate_md5(&signature_data);
+        let calculated_hash = format!("{:x}", Sha256::digest(signature_data.as_bytes()));
         calculated_hash == self.signature_hash
     }
 }

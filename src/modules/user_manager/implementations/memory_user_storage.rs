@@ -1,15 +1,15 @@
-//! Memory-based user storage implementation
-//! 
-//! REFACTORED: Implements UserStorage interface with in-memory persistence
-//! Used for testing and scenarios where file persistence is not needed
-//! Follows Dependency Inversion Principle by implementing the UserStorage abstraction
+//! In-memory user storage implementation for QMS
+//! Uses Argon2 for secure password hashing
 
-use crate::prelude::*;
-use crate::models::{User, Role, Permission};
+use crate::error::{QmsError, QmsResult};
 use crate::modules::user_manager::interfaces::UserStorage;
+use crate::models::{User, Role, Permission};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
+use argon2::{self, Config};
+use rand::Rng;
+use tracing::error;
 
 /// Memory-based user storage implementation
 /// Stores users in memory using HashMap for fast access
@@ -18,11 +18,9 @@ pub struct MemoryUserStorage {
 }
 
 impl MemoryUserStorage {
-    /// Create new memory user storage
+    /// Create new memory user storage with default admin user
     pub fn new() -> QmsResult<Self> {
         let mut users = HashMap::new();
-        
-        // Initialize with default admin user
         let admin_user = Self::create_default_admin_user()?;
         users.insert(admin_user.username.clone(), admin_user);
         
@@ -31,38 +29,27 @@ impl MemoryUserStorage {
         })
     }
     
-    /// Create new memory user storage with custom users
-    pub fn with_users(initial_users: Vec<User>) -> QmsResult<Self> {
-        let mut users = HashMap::new();
-        
-        for user in initial_users {
-            users.insert(user.username.clone(), user);
-        }
-        
-        Ok(Self {
-            users: Arc::new(Mutex::new(users)),
-        })
-    }
-    
-    /// Create default admin user
+    /// Create default admin user with secure password hash
     fn create_default_admin_user() -> QmsResult<User> {
+        let password_hash = Self::hash_password("admin123");
+        
         Ok(User {
             username: "admin".to_string(),
-            password_hash: Self::hash_password("admin123"),
+            password_hash,
             roles: vec![Self::get_admin_role()],
-            created_at: SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs(),
+            created_at: SystemTime::now().duration_since(UNIX_EPOCH)
+                .map_err(|e| QmsError::domain_error(&format!("Failed to get current time: {e}")))?
+                .as_secs(),
             last_login: None,
         })
     }
     
-    /// Hash password for storage
+    /// Hash password using Argon2 for storage
     fn hash_password(password: &str) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        
-        let mut hasher = DefaultHasher::new();
-        password.hash(&mut hasher);
-        format!("{:x}", hasher.finish())
+        let salt = rand::thread_rng().gen::<[u8; 32]>();
+        let config = Config::default();
+        argon2::hash_encoded(password.as_bytes(), &salt, &config)
+            .expect("Failed to hash password")
     }
     
     /// Get admin role with all permissions

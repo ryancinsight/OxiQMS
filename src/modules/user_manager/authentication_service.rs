@@ -5,6 +5,14 @@ use crate::error::{QmsError, QmsResult};
 use crate::audit::{log_user_action, log_system_event};
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use argon2::{self, Config};
+use rand::Rng;
+use tracing::{info, error, warn};
+
+// Constants for FDA compliance
+const PASSWORD_EXPIRY_DAYS: u64 = 90;
+const MAX_FAILED_ATTEMPTS: u32 = 5;
+const SESSION_TIMEOUT_MINUTES: u64 = 30;
 
 /// User authentication credentials
 #[derive(Debug, Clone)]
@@ -73,7 +81,6 @@ pub struct User {
     pub email: String,
     pub role: UserRole,
     pub password_hash: String,
-    pub salt: String,
     pub created_at: u64,
     pub last_login: Option<u64>,
     pub failed_login_attempts: u32,
@@ -96,7 +103,6 @@ impl User {
             email,
             role,
             password_hash: String::new(),
-            salt: String::new(),
             created_at: now,
             last_login: None,
             failed_login_attempts: 0,
@@ -133,8 +139,8 @@ impl AuthenticationService {
         Self {
             users: HashMap::new(),
             sessions: HashMap::new(),
-            session_timeout_minutes: 30, // FDA recommended session timeout
-            max_failed_attempts: 3,
+            session_timeout_minutes: SESSION_TIMEOUT_MINUTES, // FDA recommended session timeout
+            max_failed_attempts: MAX_FAILED_ATTEMPTS,
         }
     }
 
@@ -162,7 +168,7 @@ impl AuthenticationService {
         }
 
         // Verify password
-        if !self.verify_password(&credentials.password, &user.password_hash, &user.salt) {
+        if !self.verify_password(&credentials.password, &user.password_hash) {
             user.failed_login_attempts += 1;
             
             if user.failed_login_attempts >= self.max_failed_attempts {
@@ -256,9 +262,8 @@ impl AuthenticationService {
 
         // Create user
         let mut user = User::new(username.clone(), email, role);
-        let (password_hash, salt) = self.hash_password(&password)?;
+        let password_hash = self.hash_password(&password)?;
         user.password_hash = password_hash;
-        user.salt = salt;
 
         self.users.insert(username.clone(), user.clone());
         
@@ -274,7 +279,7 @@ impl AuthenticationService {
             .ok_or_else(|| QmsError::not_found("User not found"))?;
 
         // Verify old password
-        if !self.verify_password(old_password, &user.password_hash, &user.salt) {
+        if !self.verify_password(old_password, &user.password_hash) {
             log_user_action(username, "PASSWORD_CHANGE", "authentication_service", "FAILED_INVALID_OLD_PASSWORD");
             return Err(QmsError::authentication_error("Invalid old password"));
         }
@@ -283,15 +288,14 @@ impl AuthenticationService {
         self.validate_password_strength(new_password)?;
 
         // Update password
-        let (password_hash, salt) = self.hash_password(new_password)?;
+        let password_hash = self.hash_password(new_password)?;
         user.password_hash = password_hash;
-        user.salt = salt;
         
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        user.password_expires_at = now + (PASSWORD_EXPIRATION_DAYS * 24 * 60 * 60); // 90 days
+        user.password_expires_at = now + (PASSWORD_EXPIRY_DAYS * 24 * 60 * 60); // 90 days
 
         log_user_action(username, "PASSWORD_CHANGED", "authentication_service", "SUCCESS");
         
@@ -306,19 +310,18 @@ impl AuthenticationService {
         Ok(session.role.has_permission(&permission))
     }
 
-    /// Hash password with salt
-    fn hash_password(&self, password: &str) -> QmsResult<(String, String)> {
-        let salt = uuid::Uuid::new_v4().to_string();
-        let salted_password = format!("{}{}", password, salt);
-        let hash = format!("{:x}", md5::compute(salted_password.as_bytes()));
-        Ok((hash, salt))
+    /// Hash password with Argon2 (includes salt)
+    fn hash_password(&self, password: &str) -> QmsResult<String> {
+        let salt = rand::thread_rng().gen::<[u8; 32]>();
+        let config = Config::default();
+        let password_hash = argon2::hash_encoded(password.as_bytes(), &salt, &config)
+            .map_err(|e| QmsError::domain_error(&format!("Failed to hash password: {e}")))?;
+        Ok(password_hash)
     }
 
     /// Verify password against hash
-    fn verify_password(&self, password: &str, hash: &str, salt: &str) -> bool {
-        let salted_password = format!("{}{}", password, salt);
-        let computed_hash = format!("{:x}", md5::compute(salted_password.as_bytes()));
-        computed_hash == hash
+    fn verify_password(&self, password: &str, hash: &str) -> bool {
+        argon2::verify_encoded(hash, password.as_bytes()).unwrap_or(false)
     }
 
     /// Validate password strength per FDA requirements
@@ -423,8 +426,8 @@ mod tests {
     #[test]
     fn test_authentication_service_creation() {
         let auth_service = AuthenticationService::new();
-        assert_eq!(auth_service.session_timeout_minutes, 30);
-        assert_eq!(auth_service.max_failed_attempts, 3);
+        assert_eq!(auth_service.session_timeout_minutes, SESSION_TIMEOUT_MINUTES);
+        assert_eq!(auth_service.max_failed_attempts, MAX_FAILED_ATTEMPTS);
         assert!(auth_service.users.is_empty());
         assert!(auth_service.sessions.is_empty());
     }
@@ -445,7 +448,6 @@ mod tests {
         assert_eq!(user.username, "test_user");
         assert_eq!(user.role, UserRole::QualityEngineer);
         assert!(!user.password_hash.is_empty());
-        assert!(!user.salt.is_empty());
     }
 
     #[test]

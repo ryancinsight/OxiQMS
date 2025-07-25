@@ -1,11 +1,13 @@
-// Password-based authentication strategy
-// Implements UserAuthenticator interface using password hashing
+//! Password-based authentication strategy for QMS user management
+//! Implements secure password hashing using Argon2
 
-use crate::prelude::*;
-use crate::models::User;
-use crate::modules::user_manager::interfaces::{UserAuthenticator, UserStorage, AuthenticationResult, UserSession};
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
+use crate::error::{QmsError, QmsResult};
+use crate::modules::user_manager::interfaces::{
+    AuthenticationStrategy, User, UserRole, AuthenticationContext
+};
+use argon2::{self, Config};
+use rand::Rng;
+use tracing::error;
 
 /// Password-based authentication strategy
 pub struct PasswordAuthenticationStrategy<S: UserStorage> {
@@ -112,13 +114,14 @@ impl<S: UserStorage> UserAuthenticator for PasswordAuthenticationStrategy<S> {
     }
     
     fn hash_password(&self, password: &str) -> String {
-        let mut hasher = DefaultHasher::new();
-        password.hash(&mut hasher);
-        format!("{:x}", hasher.finish())
+        let salt = rand::thread_rng().gen::<[u8; 32]>();
+        let config = Config::default();
+        argon2::hash_encoded(password.as_bytes(), &salt, &config)
+            .expect("Failed to hash password")
     }
     
     fn verify_password(&self, password: &str, hash: &str) -> bool {
-        self.hash_password(password) == hash
+        argon2::verify_encoded(hash, password.as_bytes()).is_ok()
     }
 }
 

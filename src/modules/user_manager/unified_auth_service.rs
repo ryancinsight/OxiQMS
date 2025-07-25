@@ -1,16 +1,14 @@
-// Unified Authentication Service
-// Consolidates CLI and web authentication into a single service
-// Uses dependency injection with UserStorage and SessionStorage traits
+//! Unified Authentication Service for QMS
+//! Provides centralized authentication with secure password hashing using Argon2
 
-use crate::prelude::*;
-use crate::models::{User, Role, Permission};
-use crate::modules::user_manager::interfaces::{
-    UserStorage, SessionStorage, UserSession, SessionType, AuthenticationResult
-};
-use crate::modules::audit_logger::audit_log_action;
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::error::{QmsError, QmsResult};
+use crate::modules::user_manager::interfaces::{UserSession, User, UserRole, SessionType};
+use crate::audit::{log_user_action, log_system_event};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
+use argon2::{self, Config};
+use rand::Rng;
+use tracing::error;
 
 /// Unified authentication service for both CLI and web
 pub struct UnifiedAuthenticationService<U: UserStorage, S: SessionStorage> {
@@ -51,7 +49,7 @@ impl<U: UserStorage, S: SessionStorage> UnifiedAuthenticationService<U, S> {
         let user = self.user_storage.load_user(username)?;
         
         // Verify password
-        if user.password_hash != Self::hash_password(password) {
+        if !Self::verify_password(password, &user.password_hash) {
             let _ = audit_log_action("LOGIN_FAILED", "User", username);
             return Err(QmsError::Authentication("Invalid credentials".to_string()));
         }
@@ -266,14 +264,17 @@ impl<U: UserStorage, S: SessionStorage> UnifiedAuthenticationService<U, S> {
         self.user_storage.save_user(user)
     }
 
-    /// Hash password using simple hash (can be enhanced with bcrypt later)
+    /// Hash password using Argon2 for security and FDA compliance
     pub fn hash_password(password: &str) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-
-        let mut hasher = DefaultHasher::new();
-        password.hash(&mut hasher);
-        format!("{:x}", hasher.finish())
+        let salt = rand::thread_rng().gen::<[u8; 32]>();
+        let config = Config::default();
+        argon2::hash_encoded(password.as_bytes(), &salt, &config)
+            .expect("Failed to hash password")
+    }
+    
+    /// Verify password against Argon2 hash
+    pub fn verify_password(password: &str, hash: &str) -> bool {
+        argon2::verify_encoded(hash, password.as_bytes()).is_ok()
     }
     
     /// Check if user has permission
