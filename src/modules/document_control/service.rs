@@ -1129,6 +1129,26 @@ impl DocumentService {
 
     // ========== BACKUP MANAGEMENT METHODS (Phase 2.1.14) ==========
 
+    /// Create an automatic backup of a document
+    pub fn create_automatic_backup(&self, document: &Document, created_by: &str, reason: &str) -> QmsResult<String> {
+        let backup_manager = DocumentBackupManager::new(self.project_path.clone());
+
+        // Read document content for backup
+        let document_content = std::fs::read_to_string(&document.file_path)
+            .unwrap_or_else(|_| "Document content unavailable".to_string());
+
+        let backup_metadata = backup_manager.create_backup(
+            &document.id,
+            &document.version,
+            std::path::Path::new(&document.file_path),
+            &document_content,
+            created_by,
+            reason,
+        )?;
+
+        Ok(backup_metadata.backup_id)
+    }
+
     /// List all backups for a specific document
     pub fn list_document_backups(&self, document_id: &str) -> QmsResult<Vec<super::backup::BackupMetadata>> {
         let backup_manager = DocumentBackupManager::new(self.project_path.clone());

@@ -10,7 +10,7 @@ use std::path::Path;
 
 /// Generic storage reader interface - Interface Segregation Principle
 /// Focused solely on reading operations
-pub trait StorageReader<T> {
+pub trait StorageReader<T>: Send + Sync {
     /// Read a single item by ID
     fn read(&self, id: &str) -> QmsResult<T>;
     
@@ -26,7 +26,7 @@ pub trait StorageReader<T> {
 
 /// Generic storage writer interface - Interface Segregation Principle
 /// Focused solely on writing operations
-pub trait StorageWriter<T> {
+pub trait StorageWriter<T>: Send + Sync {
     /// Save a single item
     fn save(&self, item: &T) -> QmsResult<()>;
     
@@ -42,7 +42,7 @@ pub trait StorageWriter<T> {
 
 /// Generic storage searcher interface - Interface Segregation Principle
 /// Focused solely on search operations
-pub trait StorageSearcher<T, C> {
+pub trait StorageSearcher<T, C>: Send + Sync {
     /// Search items based on criteria
     fn search(&self, criteria: &C) -> QmsResult<Vec<T>>;
     
@@ -55,7 +55,7 @@ pub trait StorageSearcher<T, C> {
 
 /// Generic storage indexer interface - Interface Segregation Principle
 /// Focused solely on indexing operations
-pub trait StorageIndexer {
+pub trait StorageIndexer: Send + Sync {
     /// Rebuild index
     fn rebuild_index(&self) -> QmsResult<()>;
     
@@ -68,7 +68,7 @@ pub trait StorageIndexer {
 
 /// Generic backup manager interface - Interface Segregation Principle
 /// Focused solely on backup operations
-pub trait BackupManager {
+pub trait BackupManager: Send + Sync {
     /// Create a backup
     fn create_backup(&self) -> QmsResult<String>;
     
@@ -134,7 +134,7 @@ pub trait CompositeStorage<T, C>:
 
 /// Storage factory interface - Abstract Factory Pattern
 /// Follows Dependency Inversion Principle
-pub trait StorageFactory<T, C> {
+pub trait StorageFactory<T, C>: Send + Sync {
     /// Create a reader instance
     fn create_reader(&self, path: &Path) -> QmsResult<Box<dyn StorageReader<T>>>;
     

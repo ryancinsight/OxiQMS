@@ -135,6 +135,7 @@ pub struct AuthenticationResult {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SessionType {
     CLI,
+    TUI,  // Terminal User Interface
     Web,
 }
 

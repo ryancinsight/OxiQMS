@@ -7,6 +7,7 @@
 pub mod cli_adapter;
 pub mod web_adapter;
 pub mod project_adapter;
+pub mod interface_adapters;
 
 pub use cli_adapter::{
     CliCommandAdapter, LegacyCliRouterAdapter, CliInterfaceManager, CliCommandFactory
@@ -16,4 +17,7 @@ pub use web_adapter::{
 };
 pub use project_adapter::{
     ProjectServiceAdapter, SharedProjectManager
+};
+pub use interface_adapters::{
+    CliInterfaceAdapter, WebInterfaceAdapter, TuiInterfaceAdapter
 };

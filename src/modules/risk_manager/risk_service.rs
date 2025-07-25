@@ -9,13 +9,13 @@ use crate::prelude::*;
 use super::risk::{RiskItem, RiskSeverity, RiskOccurrence, RiskDetectability, RiskIndexEntry, RiskFilter};
 
 /// Risk Service Trait - DIP: Abstraction for risk management operations
-/// 
+///
 /// This trait abstracts risk management operations, enabling:
 /// - Dependency injection in controllers
 /// - Multiple implementations (file-based, database, cloud, etc.)
 /// - Easy testing with mock implementations
 /// - Clear separation between high-level controllers and low-level implementations
-pub trait RiskService {
+pub trait RiskService: Send + Sync {
     /// Create a new risk item
     fn create_risk(&mut self, description: &str, situation: &str, harm: &str) -> QmsResult<RiskItem>;
     

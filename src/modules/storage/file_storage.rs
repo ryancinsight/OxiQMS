@@ -28,7 +28,7 @@ where
 
 impl<T> StorageReader<T> for FileStorageReader<T>
 where
-    T: Clone,
+    T: Clone + Send + Sync,
 {
     fn read(&self, id: &str) -> QmsResult<T> {
         let file_path = self.base_path.join(format!("{}.json", id));
@@ -123,6 +123,8 @@ impl<T> FileStorageWriter<T>
 }
 
 impl<T> StorageWriter<T> for FileStorageWriter<T>
+where
+    T: Send + Sync,
 {
     fn save(&self, item: &T) -> QmsResult<()> {
         let id = self.get_item_id(item)?;
@@ -190,7 +192,7 @@ where
 
 impl<T> StorageSearcher<T, FileSearchCriteria> for FileStorageSearcher<T>
 where
-    T: Clone,
+    T: Clone + Send + Sync,
 {
     fn search(&self, _criteria: &FileSearchCriteria) -> QmsResult<Vec<T>> {
         // Simplified implementation - just return all items
@@ -218,9 +220,16 @@ where
 /// Abstract Factory Pattern following Dependency Inversion Principle
 pub struct FileStorageFactory;
 
+impl FileStorageFactory {
+    /// Create new file storage factory
+    pub fn new() -> Self {
+        Self
+    }
+}
+
 impl<T> StorageFactory<T, FileSearchCriteria> for FileStorageFactory
 where
-    T: Clone + 'static,
+    T: Clone + Send + Sync + 'static,
 {
     fn create_reader(&self, path: &Path) -> QmsResult<Box<dyn StorageReader<T>>> {
         Ok(Box::new(FileStorageReader::new(path)))

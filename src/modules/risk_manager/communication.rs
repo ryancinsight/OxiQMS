@@ -521,6 +521,7 @@ impl crate::modules::risk_manager::risk::RiskLevel {
 impl crate::modules::risk_manager::risk::RiskStatus {
     pub const fn to_string(&self) -> &'static str {
         match self {
+            crate::modules::risk_manager::risk::RiskStatus::Open => "Open",
             crate::modules::risk_manager::risk::RiskStatus::Identified => "Identified",
             crate::modules::risk_manager::risk::RiskStatus::Assessed => "Assessed",
             crate::modules::risk_manager::risk::RiskStatus::Mitigated => "Mitigated",

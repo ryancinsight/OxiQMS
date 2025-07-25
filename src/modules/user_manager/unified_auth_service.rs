@@ -112,15 +112,53 @@ impl<U: UserStorage, S: SessionStorage> UnifiedAuthenticationService<U, S> {
         Ok(session)
     }
     
+    /// Create session for already authenticated user (for cross-interface sync)
+    pub fn create_session_for_user(&self, username: &str, session_type: SessionType) -> QmsResult<UserSession> {
+        // Load user to get roles and permissions
+        let user = self.user_storage.load_user(username)?;
+
+        // Create session without password verification (user already authenticated)
+        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+        let session = UserSession {
+            session_id: UserSession::generate_session_id(),
+            user_id: user.username.clone(),
+            username: user.username.clone(),
+            roles: user.roles.clone(),
+            permissions: self.extract_permissions(&user.roles),
+            login_time: now,
+            last_activity: now,
+            expires_at: now + (self.session_timeout_hours * 3600),
+            ip_address: None, // Cross-interface sessions don't track IP
+            user_agent: None, // Cross-interface sessions don't track user agent
+            csrf_token: UserSession::generate_csrf_token(),
+            is_active: true,
+            session_type,
+            data: HashMap::new(),
+        };
+
+        // Store session
+        {
+            let session_storage = self.session_storage.lock()
+                .map_err(|_| QmsError::domain_error("Failed to acquire session storage lock"))?;
+            session_storage.save_session(&session)?;
+        }
+
+        // Audit log
+        let _ = audit_log_action("SESSION_CREATED", "Authentication",
+            &format!("Cross-interface session created for user: {}, type: {:?}", username, session_type));
+
+        Ok(session)
+    }
+
     /// Update session activity
     pub fn update_session_activity(&self, session_id: &str) -> QmsResult<()> {
         let session_storage = self.session_storage.lock()
             .map_err(|_| QmsError::domain_error("Failed to acquire session storage lock"))?;
-        
+
         let mut session = session_storage.load_session(session_id)?;
         session.update_activity();
         session_storage.save_session(&session)?;
-        
+
         Ok(())
     }
     

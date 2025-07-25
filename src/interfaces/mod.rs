@@ -21,11 +21,20 @@ pub mod user_interaction;
 pub mod authentication;
 pub mod adapters;
 
+// Unified interface consolidation modules
+pub mod unified_context;
+pub mod unified_auth_flow;
+pub mod unified_project_manager;
+pub mod unified_routing;
+pub mod unified_config_manager;
+pub mod unified_validation;
+pub mod project_strategies;
+
 #[cfg(test)]
 mod integration_tests;
 
 /// Common interface types supported by the QMS system
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InterfaceType {
     CLI,
     Web,
@@ -243,6 +252,7 @@ pub struct CommandResult {
     pub data: Option<JsonValue>,
     pub requires_user_input: bool,
     pub next_action: Option<String>,
+    pub metadata: std::collections::HashMap<String, String>,
 }
 
 impl CommandResult {
@@ -254,6 +264,7 @@ impl CommandResult {
             data: None,
             requires_user_input: false,
             next_action: None,
+            metadata: std::collections::HashMap::new(),
         }
     }
 
@@ -265,6 +276,7 @@ impl CommandResult {
             data: Some(data),
             requires_user_input: false,
             next_action: None,
+            metadata: std::collections::HashMap::new(),
         }
     }
 
@@ -276,6 +288,7 @@ impl CommandResult {
             data: None,
             requires_user_input: false,
             next_action: None,
+            metadata: std::collections::HashMap::new(),
         }
     }
 
@@ -287,6 +300,7 @@ impl CommandResult {
             data: None,
             requires_user_input: true,
             next_action: Some(next_action),
+            metadata: std::collections::HashMap::new(),
         }
     }
 }
@@ -335,3 +349,16 @@ impl InterfaceFactory {
         Ok(Arc::new(service))
     }
 }
+
+// Re-export unified interface components
+pub use unified_context::{UnifiedInterfaceContext, AuthenticationState, ProjectContext, ConfigurationManager};
+pub use unified_auth_flow::{UnifiedAuthFlow, AuthResult, AuthCredentials};
+pub use unified_project_manager::UnifiedProjectManager;
+pub use unified_context::ProjectInfo;
+pub use unified_routing::{UnifiedRouter, UnifiedCommand, UnifiedCommandContext, UnifiedCommandResult};
+pub use unified_config_manager::{UnifiedConfigManager, ConfigSource, ValidationResult as ConfigValidationResult};
+pub use unified_validation::{UnifiedValidationManager, FieldType, ValidationResult, ValidationError};
+pub use project_strategies::{
+    CliProjectDiscoveryStrategy, WebProjectDiscoveryStrategy, TuiProjectDiscoveryStrategy,
+    CliProjectSelectionStrategy, WebProjectSelectionStrategy, TuiProjectSelectionStrategy
+};

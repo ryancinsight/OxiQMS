@@ -68,6 +68,12 @@ impl From<std::time::SystemTimeError> for QmsError {
     }
 }
 
+impl From<crate::modules::repository::project::RepositoryError> for QmsError {
+    fn from(error: crate::modules::repository::project::RepositoryError) -> Self {
+        QmsError::Domain(format!("Repository error: {error}"))
+    }
+}
+
 impl QmsError {
     /// Create a validation error
     pub fn validation_error(msg: &str) -> Self {

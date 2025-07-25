@@ -12,12 +12,12 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 /// Risk Repository - Single Responsibility: Data persistence only
-/// 
+///
 /// This trait abstracts risk data persistence operations, enabling:
 /// - Dependency injection for testing
 /// - Multiple storage backends (file, database, etc.)
 /// - Clear separation of persistence from business logic
-pub trait RiskRepository {
+pub trait RiskRepository: Send + Sync {
     /// Save a risk item to persistent storage
     fn save_risk(&self, risk: &RiskItem) -> QmsResult<()>;
     

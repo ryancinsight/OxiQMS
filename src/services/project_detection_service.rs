@@ -222,6 +222,14 @@ impl ProjectDetectionService {
         Err(QmsError::not_found("No valid QMS project found. Use 'qms init' to create a project."))
     }
     
+    /// Detect project in a directory (compatibility method)
+    pub fn detect_project(&self, directory: &Path) -> QmsResult<Option<ProjectMetadata>> {
+        match self.validate_project_directory(directory) {
+            Ok(result) => Ok(Some(result.metadata)),
+            Err(_) => Ok(None),
+        }
+    }
+
     /// Parse project metadata from project.json
     fn parse_project_metadata(&self, project_file: &Path) -> QmsResult<ProjectMetadata> {
         let content = fs::read_to_string(project_file)?;

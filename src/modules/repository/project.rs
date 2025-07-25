@@ -38,6 +38,11 @@ impl std::error::Error for RepositoryError {}
 pub struct Repository;
 
 impl Repository {
+    /// Create a new Repository instance
+    pub fn new() -> Self {
+        Self
+    }
+
     /// Initialize project in a specific directory (for user-specific projects)
     pub fn init_project_in_directory(name: &str, base_directory: &std::path::Path) -> Result<Project, RepositoryError> {
         // Validate project name

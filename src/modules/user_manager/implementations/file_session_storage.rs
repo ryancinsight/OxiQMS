@@ -79,6 +79,7 @@ impl FileSessionStorage {
                 session.is_active,
                 match session.session_type {
                     SessionType::CLI => "CLI",
+                    SessionType::TUI => "TUI",
                     SessionType::Web => "Web",
                 },
                 data_json.join(",")
