@@ -10,6 +10,84 @@ use crate::constants::{fda_qsr, system, cfr_part_11}; // SSOT: Use centralized c
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Logging configuration for FDA-compliant audit trails
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct LoggingConfig {
+    /// Path to the log file directory
+    pub log_file_path: PathBuf,
+    /// Maximum size of each log file before rotation (in bytes)
+    pub max_file_size: u64,
+    /// Maximum number of rotated log files to keep
+    pub max_files: usize,
+    /// Log level (TRACE, DEBUG, INFO, WARN, ERROR)
+    pub level: String,
+    /// Whether to enable console logging in addition to file logging
+    pub console_logging: bool,
+    /// Whether to enable JSON formatted logs for structured logging
+    pub json_format: bool,
+    /// Whether to enable audit-specific logging
+    pub audit_logging: bool,
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            log_file_path: PathBuf::from("logs/qms.log"),
+            max_file_size: 10 * 1024 * 1024, // 10MB
+            max_files: 10,
+            level: "INFO".to_string(),
+            console_logging: true,
+            json_format: true, // For FDA compliance and audit trails
+            audit_logging: true,
+        }
+    }
+}
+
+impl LoggingConfig {
+    /// Create FDA-compliant logging configuration
+    pub fn new_fda_compliant() -> Self {
+        Self {
+            log_file_path: PathBuf::from("logs/audit.log"),
+            max_file_size: 100 * 1024 * 1024, // 100MB for comprehensive audit trails
+            max_files: 50, // Keep more files for compliance
+            level: "INFO".to_string(),
+            console_logging: false, // File-only for compliance
+            json_format: true, // Required for audit trails
+            audit_logging: true,
+        }
+    }
+
+    /// Validate logging configuration
+    pub fn validate(&self) -> QmsResult<()> {
+        let valid_levels = ["TRACE", "DEBUG", "INFO", "WARN", "ERROR"];
+        if !valid_levels.contains(&self.level.as_str()) {
+            return Err(QmsError::validation_error(&format!(
+                "Invalid log level '{}'. Must be one of: {:?}",
+                self.level, valid_levels
+            )));
+        }
+
+        if self.max_file_size < 1024 {
+            return Err(QmsError::validation_error(
+                "Maximum file size must be at least 1KB"
+            ));
+        }
+
+        if self.max_files == 0 {
+            return Err(QmsError::validation_error(
+                "Must keep at least 1 log file"
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Get the log directory path
+    pub fn log_dir(&self) -> PathBuf {
+        self.log_file_path.parent().unwrap_or(Path::new("logs")).to_path_buf()
+    }
+}
+
 /// QMS system configuration structure
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -21,6 +99,7 @@ pub struct Config {
     pub require_electronic_signature: bool,
     pub backup_enabled: bool,
     pub encryption_enabled: bool,
+    pub logging: LoggingConfig,
 }
 
 impl Default for Config {
@@ -47,6 +126,7 @@ impl Config {
             require_electronic_signature: cfr_part_11::REQUIRE_AUDIT_TRAIL,
             backup_enabled: system::BACKUP_ENABLED_DEFAULT,
             encryption_enabled: system::ENCRYPTION_ENABLED_DEFAULT,
+            logging: LoggingConfig::default(),
         }
     }
 
@@ -135,6 +215,9 @@ impl Config {
             ));
         }
 
+        // Validate logging configuration
+        self.logging.validate()?;
+
         Ok(())
     }
 
@@ -173,6 +256,10 @@ impl Config {
         fields.insert(
             "encryption_enabled".to_string(),
             JsonValue::Bool(self.encryption_enabled),
+        );
+        fields.insert(
+            "logging".to_string(),
+            self.logging.to_json_value(),
         );
 
         JsonValue::Object(fields)
@@ -250,6 +337,8 @@ impl Config {
                     }
                 };
 
+                let logging = LoggingConfig::from_json_value(obj.get("logging"))?;
+
                 let config = Config {
                     project_root,
                     log_level,
@@ -259,6 +348,7 @@ impl Config {
                     require_electronic_signature,
                     backup_enabled,
                     encryption_enabled,
+                    logging,
                 };
 
                 // Validate the loaded configuration
@@ -307,6 +397,10 @@ mod tests {
         assert!(config.require_electronic_signature);
         assert!(config.backup_enabled);
         assert!(config.encryption_enabled);
+        assert_eq!(config.logging.level, "INFO");
+        assert!(config.logging.console_logging);
+        assert!(config.logging.json_format);
+        assert!(config.logging.audit_logging);
     }
 
     #[test]
@@ -339,6 +433,25 @@ mod tests {
         // Test electronic signature requirement
         config.require_electronic_signature = false;
         assert!(config.validate().is_err());
+
+        // Test invalid logging configuration
+        let mut invalid_logging = config.logging.clone();
+        invalid_logging.level = "INVALID".to_string();
+        config.logging = invalid_logging;
+        assert!(config.validate().is_err());
+        config.logging.level = "INFO".to_string();
+
+        let mut invalid_logging = config.logging.clone();
+        invalid_logging.max_file_size = 0;
+        config.logging = invalid_logging;
+        assert!(config.validate().is_err());
+        config.logging.max_file_size = 10 * 1024 * 1024;
+
+        let mut invalid_logging = config.logging.clone();
+        invalid_logging.max_files = 0;
+        config.logging = invalid_logging;
+        assert!(config.validate().is_err());
+        config.logging.max_files = 10;
     }
 
     #[test]
@@ -378,6 +491,7 @@ mod tests {
             config.audit_retention_days,
             restored_config.audit_retention_days
         );
+        assert_eq!(config.logging.level, restored_config.logging.level);
     }
 
     #[test]

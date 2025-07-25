@@ -19,6 +19,14 @@ pub mod profile_manager;
 // Startup authentication service
 pub mod startup_auth_service;
 
+// FDA 21 CFR Part 11 compliant authentication service
+pub mod authentication_service;
+
+// Re-export main components
+pub use authentication_service::{
+    AuthenticationService, User, UserCredentials, UserSession, UserRole, Permission
+};
+
 // Unified authentication service
 pub mod unified_auth_service;
 
