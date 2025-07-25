@@ -11,7 +11,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Logging configuration for FDA-compliant audit trails
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LoggingConfig {
     /// Path to the log file directory
     pub log_file_path: PathBuf,
@@ -85,102 +85,6 @@ impl LoggingConfig {
     /// Get the log directory path
     pub fn log_dir(&self) -> PathBuf {
         self.log_file_path.parent().unwrap_or(Path::new("logs")).to_path_buf()
-    }
-
-    /// Convert logging configuration to JSON value
-    pub fn to_json_value(&self) -> JsonValue {
-        let mut fields = std::collections::HashMap::new();
-
-        fields.insert(
-            "log_file_path".to_string(),
-            JsonValue::String(self.log_file_path.to_string_lossy().to_string()),
-        );
-        fields.insert(
-            "max_file_size".to_string(),
-            JsonValue::Number(self.max_file_size as f64),
-        );
-        fields.insert(
-            "max_files".to_string(),
-            JsonValue::Number(self.max_files as f64),
-        );
-        fields.insert(
-            "level".to_string(),
-            JsonValue::String(self.level.clone()),
-        );
-        fields.insert(
-            "console_logging".to_string(),
-            JsonValue::Bool(self.console_logging),
-        );
-        fields.insert(
-            "json_format".to_string(),
-            JsonValue::Bool(self.json_format),
-        );
-        fields.insert(
-            "audit_logging".to_string(),
-            JsonValue::Bool(self.audit_logging),
-        );
-
-        JsonValue::Object(fields)
-    }
-
-    /// Create logging configuration from JSON value
-    pub fn from_json_value(json: Option<&JsonValue>) -> QmsResult<Self> {
-        match json {
-            Some(JsonValue::Object(obj)) => {
-                let log_file_path = match obj.get("log_file_path") {
-                    Some(JsonValue::String(s)) => PathBuf::from(s),
-                    _ => PathBuf::from("logs/qms.log"),
-                };
-
-                let max_file_size = match obj.get("max_file_size") {
-                    Some(JsonValue::Number(n)) => *n as u64,
-                    _ => 10 * 1024 * 1024,
-                };
-
-                let max_files = match obj.get("max_files") {
-                    Some(JsonValue::Number(n)) => *n as usize,
-                    _ => 10,
-                };
-
-                let level = match obj.get("level") {
-                    Some(JsonValue::String(s)) => s.clone(),
-                    _ => "INFO".to_string(),
-                };
-
-                let console_logging = match obj.get("console_logging") {
-                    Some(JsonValue::Bool(b)) => *b,
-                    _ => true,
-                };
-
-                let json_format = match obj.get("json_format") {
-                    Some(JsonValue::Bool(b)) => *b,
-                    _ => true,
-                };
-
-                let audit_logging = match obj.get("audit_logging") {
-                    Some(JsonValue::Bool(b)) => *b,
-                    _ => true,
-                };
-
-                let config = LoggingConfig {
-                    log_file_path,
-                    max_file_size,
-                    max_files,
-                    level,
-                    console_logging,
-                    json_format,
-                    audit_logging,
-                };
-
-                config.validate()?;
-                Ok(config)
-            }
-            None => {
-                // If no logging config is provided, use default
-                Ok(LoggingConfig::default())
-            }
-            _ => Err(QmsError::parse_error("Logging configuration must be a JSON object")),
-        }
     }
 }
 

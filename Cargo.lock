@@ -196,6 +196,7 @@ name = "qms"
 version = "1.0.0"
 dependencies = [
  "md5",
+ "serde",
  "tempfile",
  "tracing",
  "tracing-appender",

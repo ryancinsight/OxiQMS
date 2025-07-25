@@ -5,9 +5,7 @@
 
 use crate::config::LoggingConfig;
 use crate::error::{QmsError, QmsResult};
-use crate::utils::current_timestamp;
 use std::fs;
-use std::io::Write;
 use std::sync::{Mutex, OnceLock};
 use tracing::{debug, error, info, warn};
 use tracing_appender::{non_blocking, rolling};
@@ -17,6 +15,7 @@ use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Env
 static GUARD: OnceLock<Mutex<Option<tracing_appender::non_blocking::WorkerGuard>>> = OnceLock::new();
 
 /// Initialize comprehensive tracing system with file rotation and audit compliance
+/// Improved error handling and fallback logic
 pub fn init_tracing(config: &LoggingConfig) -> QmsResult<tracing_appender::non_blocking::WorkerGuard> {
     // Create log directory if it doesn't exist
     let log_dir = config.log_dir();
@@ -61,91 +60,107 @@ pub fn init_tracing(config: &LoggingConfig) -> QmsResult<tracing_appender::non_b
             .boxed()
     };
 
-    // Create console layer if enabled
-    let console_layer = if config.console_logging {
-        Some(
-            fmt::layer()
-                .with_writer(std::io::stderr)
-                .with_target(false)
-                .with_thread_ids(false)
-                .with_thread_names(false)
-                .with_file(false)
-                .with_line_number(false)
-                .boxed()
-        )
-    } else {
-        None
-    };
+    // Simplified console layer setup - directly include in with() chain
+    let registry = tracing_subscriber::registry()
+        .with(filter)
+        .with(file_layer);
 
-    // Initialize the subscriber
-    match console_layer {
-        Some(console) => {
-            tracing_subscriber::registry()
-                .with(filter)
-                .with(file_layer)
-                .with(console)
-                .try_init()
-                .map_err(|e| QmsError::domain_error(&format!("Failed to initialize tracing: {e}")))?;
-        }
-        None => {
-            tracing_subscriber::registry()
-                .with(filter)
-                .with(file_layer)
-                .try_init()
-                .map_err(|e| QmsError::domain_error(&format!("Failed to initialize tracing: {e}")))?;
-        }
+    // Add console layer if enabled
+    if config.console_logging {
+        let console_layer = fmt::layer()
+            .with_writer(std::io::stderr)
+            .with_target(false)
+            .with_thread_ids(false)
+            .with_thread_names(false)
+            .with_file(false)
+            .with_line_number(false)
+            .boxed();
+        
+        registry.with(console_layer).try_init()
+            .map_err(|e| QmsError::domain_error(&format!("Failed to initialize tracing: {e}")))?;
+    } else {
+        registry.try_init()
+            .map_err(|e| QmsError::domain_error(&format!("Failed to initialize tracing: {e}")))?;
     }
 
     // Store the guard globally to prevent it from being dropped
     GUARD
         .set(Mutex::new(Some(guard)))
-        .map_err(|_| QmsError::domain_error("Failed to store tracing guard"))?;
+        .map_err(|_| QmsError::domain_error("Failed to set global logging guard"))?;
 
-    info!(
-        config = ?config,
-        "Tracing initialized with FDA-compliant audit logging"
-    );
-
-    // Return a guard that must be kept alive
-    Ok(create_dummy_guard())
+    // Return a dummy guard that won't cause issues if dropped
+    create_dummy_guard()
 }
 
-/// Create a dummy guard that keeps the logging active
-pub fn create_dummy_guard() -> tracing_appender::non_blocking::WorkerGuard {
-    // Create a temporary file appender to generate a guard
-    let temp_appender = rolling::Builder::new()
-        .rotation(rolling::Rotation::NEVER)
-        .filename_prefix("temp")
-        .filename_suffix("log")
-        .build(std::env::temp_dir())
-        .expect("Failed to create temporary appender");
+/// Create a dummy guard that's safe to drop
+/// Improved error handling - returns Result instead of panicking
+pub fn create_dummy_guard() -> QmsResult<tracing_appender::non_blocking::WorkerGuard> {
+    use std::io::Write;
     
-    let (_writer, guard) = non_blocking(temp_appender);
-    guard
+    // Create a temporary file for the dummy guard
+    let temp_file = tempfile::NamedTempFile::new()
+        .map_err(|e| QmsError::io_error(&format!("Failed to create temporary file for dummy guard: {e}")))?;
+    
+    let (_, guard) = non_blocking(temp_file);
+    Ok(guard)
 }
 
-/// Legacy audit logging function for backward compatibility
-pub fn log_audit(entry: &str) {
-    info!(event = "AUDIT", message = entry, "Legacy audit log entry");
+/// Robust fallback logging that ensures the application can always report errors
+pub fn ensure_logging_fallback() -> bool {
+    // Try stderr as last resort
+    match std::io::stderr().write_all(b"QMS: Logging system initialization failed, using stderr fallback\n") {
+        Ok(_) => {
+            eprintln!("QMS: Emergency logging active - all audit trails will be lost!");
+            eprintln!("QMS: Please check log directory permissions and disk space");
+            true
+        }
+        Err(_) => {
+            // Even stderr failed - this is a critical system issue
+            false
+        }
+    }
 }
 
-/// Log a command execution with structured data
+/// Log user action with structured fields (no manual timestamp)
+pub fn log_user_action(username: &str, action_type: &str, module: &str, status: &str) {
+    info!(
+        target: "audit_log",
+        username = username,
+        action_type = action_type,
+        module = module,
+        status = status,
+        "User action performed"
+    );
+}
+
+/// Log system event with structured fields (no manual timestamp)
+pub fn log_system_event(event_type: &str, module: &str, details: &str) {
+    info!(
+        target: "audit_log",
+        event_type = event_type,
+        module = module,
+        details = details,
+        "System event occurred"
+    );
+}
+
+/// Log error with structured fields (no manual timestamp)
+pub fn log_error(error_type: &str, module: &str, details: &str) {
+    error!(
+        target: "audit_log",
+        error_type = error_type,
+        module = module,
+        details = details,
+        "Error occurred"
+    );
+}
+
+/// Log command execution (no manual timestamp)
 pub fn log_command_execution(command: &str) {
     info!(
-        event = "COMMAND_EXECUTED",
+        target: "audit_log",
         command = command,
-        timestamp = current_timestamp(),
         "Command executed"
-    );
-}
-
-/// Log an error event with structured data
-pub fn log_error(error_msg: &str) {
-    error!(
-        event = "ERROR",
-        error = error_msg,
-        timestamp = current_timestamp(),
-        "Error occurred"
     );
 }
 
@@ -168,31 +183,6 @@ pub fn setup_audit_logger() -> QmsResult<()> {
     
     info!("Legacy audit logger setup completed");
     Ok(())
-}
-
-/// Log user action for audit trail
-pub fn log_user_action(user_id: &str, action: &str, resource: &str, outcome: &str) {
-    info!(
-        event = "USER_ACTION",
-        user_id = user_id,
-        action = action,
-        resource = resource,
-        outcome = outcome,
-        timestamp = current_timestamp(),
-        "User action audit log"
-    );
-}
-
-/// Log system event for compliance monitoring
-pub fn log_system_event(event_type: &str, component: &str, details: &str) {
-    info!(
-        event = "SYSTEM_EVENT",
-        event_type = event_type,
-        component = component,
-        details = details,
-        timestamp = current_timestamp(),
-        "System event audit log"
-    );
 }
 
 /// Log data integrity check for FDA compliance

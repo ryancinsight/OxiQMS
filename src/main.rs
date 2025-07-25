@@ -36,7 +36,7 @@ fn main() {
     let config = Config::load(&Config::default().config_file_path())
         .unwrap_or_else(|_| Config::default());
     
-    // Initialize comprehensive tracing system
+    // Initialize comprehensive tracing system with robust error handling
     let _guard = match init_tracing(&config.logging) {
         Ok(guard) => {
             // Log successful initialization
@@ -45,17 +45,29 @@ fn main() {
             guard
         }
         Err(e) => {
-            eprintln!("Error: Failed to initialize tracing system: {e}");
-            eprintln!("Falling back to basic audit logging...");
+            eprintln!("Warning: Failed to initialize primary tracing system: {e}");
             
-            // Fall back to legacy audit logging
-            if let Err(e) = audit::setup_audit_logger() {
-                eprintln!("Error: Failed to initialize even basic audit logger: {e}");
-                process::exit(1);
+            // Try fallback logging
+            if let Err(fallback_err) = audit::setup_audit_logger() {
+                eprintln!("Warning: Failed to initialize fallback audit logger: {fallback_err}");
+                
+                // Ensure we can still report errors to stderr as last resort
+                if !audit::ensure_logging_fallback() {
+                    eprintln!("CRITICAL: All logging systems failed, including stderr fallback!");
+                    eprintln!("CRITICAL: Application will continue but NO audit trails will be preserved!");
+                    eprintln!("CRITICAL: This violates FDA compliance requirements!");
+                }
             }
             
-            // Create a dummy guard
-            audit::create_dummy_guard()
+            // Create a dummy guard - handle potential error gracefully
+            match audit::create_dummy_guard() {
+                Ok(guard) => guard,
+                Err(guard_err) => {
+                    eprintln!("Warning: Failed to create dummy guard: {guard_err}");
+                    // Continue without guard - not ideal but won't crash the application
+                    return;
+                }
+            }
         }
     };
 
