@@ -386,7 +386,7 @@ impl Default for AuthenticationService {
 }
 
 // Add uuid dependency for unique IDs
-extern crate uuid;
+use uuid::Uuid;
 
 #[cfg(test)]
 mod tests {
