@@ -114,6 +114,11 @@ impl QmsError {
     pub fn invalid_operation(msg: &str) -> Self {
         QmsError::InvalidOperation(msg.to_string())
     }
+
+    /// Create an authentication error
+    pub fn authentication_error(msg: &str) -> Self {
+        QmsError::Authentication(msg.to_string())
+    }
 }
 
 /// Result type alias for QMS operations

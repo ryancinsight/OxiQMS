@@ -2,7 +2,7 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.70+-orange.svg)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-739%2F740%20passing-99.86%25-brightgreen.svg)](https://github.com/ryancinsight/OxiQMS)
+[![Implementation](https://img.shields.io/badge/status-Core%20Modules%20In%20Progress-yellow.svg)](https://github.com/ryancinsight/OxiQMS)
 
 A comprehensive Quality Management System (QMS) built in Rust for medical device development, designed to meet FDA 21 CFR Part 820, ISO 13485, and ISO 14971 regulatory requirements.
 
@@ -14,21 +14,32 @@ OxiQMS is specifically designed for medical device software development with bui
 - **ISO 13485** - Medical devices quality management systems
 - **ISO 14971** - Medical device risk management
 - **IEC 62304** - Medical device software lifecycle processes
+- **21 CFR Part 11** - Electronic records and electronic signatures
 
 ## 🚀 Features
 
-### Core Functionality
-- **Risk Management** - Comprehensive risk assessment and mitigation tracking
-- **Document Control** - Version-controlled document management with approval workflows
-- **Audit Logging** - Complete audit trail for regulatory compliance
-- **User Management** - Role-based access control with electronic signatures
-- **Traceability** - Requirements traceability matrix (RTM) management
-- **Report Generation** - Automated compliance reports in multiple formats
+### ✅ Implemented Features
+- **✅ FDA-Compliant Audit Logging** - Comprehensive tracing system with file rotation and JSON structured logging
+- **✅ Document Control Foundation** - Version-controlled document management with approval workflows
+- **✅ Configuration Management** - LoggingConfig with FDA-compliant presets and validation
+- **✅ SOLID Architecture** - Clean separation of concerns with dependency injection
+- **✅ Core Module Structure** - Document control, user management, risk management, traceability modules
+
+### 🔄 In Progress
+- **🔄 User Management System** - Role-based access control with electronic signatures
+- **🔄 Document Control Testing** - Comprehensive test suite implementation
+- **🔄 Unified Interface System** - Consistent functionality across CLI, Web, and TUI interfaces
+
+### 📋 Planned Features
+- **📋 Risk Management** - Comprehensive risk assessment and mitigation tracking per ISO 14971
+- **📋 Requirements Traceability** - Requirements traceability matrix (RTM) management
+- **📋 Report Generation** - Automated compliance reports in multiple formats
+- **📋 TUI Interface** - Terminal User Interface for command-line environments
 
 ### Technical Excellence
 - **SOLID Architecture** - Built following SOLID design principles (SRP, OCP, LSP, ISP, DIP)
-- **High Test Coverage** - 739/740 tests passing (99.86% success rate) with comprehensive test suite
-- **Web Interface** - Modern web UI with Progressive Web App (PWA) capabilities
+- **TDD Approach** - Test-driven development with FIRST principles
+- **FDA-Compliant Logging** - Structured JSON logging with file rotation and audit trails
 - **API-First Design** - RESTful API with comprehensive documentation
 - **Security** - Enterprise-grade security headers and data protection
 
@@ -48,8 +59,8 @@ cd OxiQMS
 # Build the project
 cargo build --release
 
-# Run tests
-cargo test
+# Run tests (note: some modules still in development)
+cargo test --lib
 
 # Initialize a new QMS project (creates project data directories)
 cargo run -- init --project "My Medical Device"
@@ -84,10 +95,10 @@ The application will create the necessary data directories and project structure
 # Initialize a new QMS project
 cargo run -- init --project "My Medical Device"
 
-# Create a risk assessment
+# Create a risk assessment (when implemented)
 cargo run -- risk create --description "Software failure" --severity high
 
-# Generate compliance reports
+# Generate compliance reports (when implemented)
 cargo run -- report generate --type risk-assessment --format pdf
 
 # Start web interface
@@ -110,16 +121,17 @@ src/
 │   ├── state.rs              # Unified state management
 │   └── authentication.rs     # Unified authentication
 ├── modules/
-│   ├── risk_manager/         # Risk management (ISO 14971)
-│   ├── document_control/     # Document control system
-│   ├── audit_logger/         # Audit trail management
-│   ├── user_manager/         # User and role management
-│   ├── traceability/         # Requirements traceability
+│   ├── audit_logger/         # ✅ FDA-compliant audit logging
+│   ├── document_control/     # ✅ Document control system
+│   ├── user_manager/         # 🔄 User and role management
+│   ├── risk_manager/         # 📋 Risk management (ISO 14971)
+│   ├── traceability/         # 📋 Requirements traceability
 │   └── cupid/                # CUPID architecture patterns
-├── tui/                      # Terminal User Interface
-├── web/                      # Web interface and API
-├── constants.rs              # Regulatory compliance constants
-└── config.rs                 # Configuration management
+├── tui/                      # 📋 Terminal User Interface
+├── web/                      # 🔄 Web interface and API
+├── config.rs                 # ✅ Configuration management
+├── audit.rs                  # ✅ FDA-compliant logging system
+└── constants.rs              # Regulatory compliance constants
 ```
 
 ### Repository Structure
@@ -151,58 +163,89 @@ OxiQMS/
 ## 📊 Current Development Status
 
 ### Implementation Progress
-- ✅ **Core QMS Modules**: Risk management, document control, audit logging, user management
-- ✅ **Unified Interface System**: CLI/Web/TUI with shared authentication and state management
-- ✅ **Medical Device Compliance**: FDA 21 CFR Part 820, ISO 13485, ISO 14971 requirements
-- ✅ **Architecture**: SOLID principles, DRY implementation, CUPID patterns
-- 🔄 **Performance Optimization**: One test failing (performance overhead needs optimization)
-- 🔄 **TUI Framework**: Documented and partially implemented, needs full integration
+- ✅ **FDA-Compliant Audit Logging**: Comprehensive tracing system with file rotation and JSON structured logging
+- ✅ **Core Module Architecture**: Document control, user management, risk management, traceability modules
+- ✅ **Configuration Management**: LoggingConfig with FDA-compliant presets and validation
+- ✅ **SOLID Architecture**: Clean separation of concerns with dependency injection
+- 🔄 **User Management System**: Authentication and authorization implementation in progress
+- 🔄 **Document Control Testing**: Comprehensive test suite implementation in progress
+- 📋 **Risk Management Module**: ISO 14971 compliance features planned
+- 📋 **TUI Framework**: Terminal interface implementation planned
 
-### Test Status
-- **Overall**: 739/740 tests passing (99.86% success rate)
-- **Failing Test**: `test_performance_overhead` (1.63s overhead, target: <500ms)
-- **Coverage**: Comprehensive unit, integration, and compliance tests
+### Current Development Phase: Core Module Implementation
+**Priority**: Critical  
+**Timeline**: 2-3 weeks  
+**Status**: IN PROGRESS
 
-### Next Development Phase
-See [PRD.md](PRD.md) for detailed requirements and development roadmap.
+#### Next Immediate Tasks:
+1. **User Management System** - Complete authentication and authorization with comprehensive tests
+2. **Document Control Testing** - Implement full TDD test suite for document control module
+3. **Risk Management Implementation** - Basic ISO 14971 compliance features
+4. **Integration Testing** - End-to-end workflow validation
+
+### Test-Driven Development
+Following TDD principles with FIRST criteria:
+- **Fast**: Tests execute in <10 seconds
+- **Isolated**: No dependencies between tests
+- **Repeatable**: Consistent results across environments
+- **Self-validating**: Clear pass/fail outcomes
+- **Timely**: Written before/during implementation
 
 ## 🧪 Testing
 
-Run the comprehensive test suite:
+Run the test suite (note: some modules still in development):
 
 ```bash
-# Run all tests
-cargo test
+# Run library tests
+cargo test --lib
 
 # Run specific test modules
-cargo test risk_manager
-cargo test audit_logger
-cargo test web
+cargo test audit
+cargo test config
+cargo test document_control
 
-# Run with coverage
+# Run with coverage (when available)
 cargo test --all-features
 ```
 
 ## 📋 Compliance Features
 
-### Risk Management (ISO 14971)
+### ✅ Implemented Compliance Features
+
+#### FDA-Compliant Audit Logging
+- Comprehensive tracing system with structured JSON logging
+- Automatic file rotation with configurable retention policies
+- Non-blocking I/O for high-performance audit trails
+- Tamper-evident audit records with timestamps and thread information
+
+#### Document Control Foundation
+- Version control with approval workflows
+- Document templates and standardization
+- Change control processes
+- Electronic signature integration points
+
+### 🔄 In Progress Compliance Features
+
+#### User Management (21 CFR Part 11)
+- Role-based access control implementation
+- Electronic signature capabilities
+- Session management with timeout
+- Multi-factor authentication support
+
+### 📋 Planned Compliance Features
+
+#### Risk Management (ISO 14971)
 - Risk identification and analysis
 - Risk evaluation and acceptability criteria
 - Risk control measures tracking
 - Residual risk assessment
 - Post-market surveillance integration
 
-### Document Control
-- Version control with approval workflows
-- Electronic signatures (21 CFR Part 11)
-- Document templates and standardization
-- Change control processes
-
-### Audit Trail
-- Complete audit logging for all system activities
-- Tamper-evident audit records
-- Automated backup and retention
-- Compliance reporting
+#### Requirements Traceability
+- Bidirectional traceability links
+- Impact analysis for requirement changes
+- Traceability report generation
+- Integration with test management
 
 ## 🤝 Contributing
 
@@ -215,11 +258,17 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 cargo install cargo-watch cargo-tarpaulin
 
 # Run tests in watch mode
-cargo watch -x test
+cargo watch -x "test --lib"
 
-# Generate coverage report
+# Generate coverage report (when available)
 cargo tarpaulin --out html
 ```
+
+### Development Workflow
+1. **Write Tests First**: Follow TDD principles with comprehensive test coverage
+2. **Implement Features**: Use SOLID principles and clean architecture
+3. **Validate Compliance**: Ensure regulatory requirements are met
+4. **Document Changes**: Update relevant documentation
 
 ## 📄 License
 
@@ -227,10 +276,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🔗 Links
 
-- [Documentation](https://docs.rs/oxiqms)
-- [API Reference](https://ryancinsight.github.io/OxiQMS/api)
+- [Product Requirements Document](PRD.md) - Detailed requirements and roadmap
+- [Development Checklist](DEVELOPMENT_CHECKLIST.md) - Current development status and tasks
+- [FDA Logging Implementation](LOGGING_IMPLEMENTATION_SUMMARY.md) - Comprehensive logging system details
 - [Issue Tracker](https://github.com/ryancinsight/OxiQMS/issues)
-- [Releases](https://github.com/ryancinsight/OxiQMS/releases)
 
 ## 📞 Support
 
@@ -242,3 +291,5 @@ For questions, issues, or support:
 ---
 
 **Note**: This software is designed for medical device development and includes features for regulatory compliance. Always consult with regulatory experts and conduct appropriate validation for your specific use case.
+
+**Current Status**: Core modules in active development. FDA-compliant audit logging system implemented and operational. User management and testing infrastructure in progress.
